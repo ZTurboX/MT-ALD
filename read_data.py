@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import csv
 import random
 import pandas as pd
@@ -132,6 +134,53 @@ def new_sample(file):
         f2_data.to_csv(f2,index=False,mode='a',header=False,encoding='utf-8')
 
 
+def get_data(file):
+    n_NotConstructiveOrOffTopic = 0
+    n_TooChatty = 0
+    n_RudeOrOffensive = 0
+    n_Unwelcoming = 0
+    f1=open('../data/ALW/f1.csv','a',encoding='utf-8')
+    f2 = open('../data/ALW/f2.csv', 'a', encoding='utf-8')
+
+    with open(file,'r',encoding='utf-8') as csvfile:
+        data=csv.reader(csvfile,delimiter=',')
+
+        for index,row in enumerate(data):
+            print("read item: {}".format(index+1))
+            flag=row[2]
+            flag = str(flag).strip().split()
+            flag = ''.join(flag)
+            if flag=='CommentNotConstructiveOrOffTopic' or flag=='CommentTooChatty' or flag=='CommentRudeOrOffensive' or flag=='CommentUnwelcoming':
+                f1_writer=csv.writer(f1)
+                f1_writer.writerow(row)
+                if flag=='CommentNotConstructiveOrOffTopic':n_NotConstructiveOrOffTopic+=1
+                elif flag=='CommentTooChatty':n_TooChatty+=1
+                elif flag=='CommentRudeOrOffensive':n_RudeOrOffensive+=1
+                elif flag=='CommentUnwelcoming':n_Unwelcoming+=1
+            else:
+                f2_writer=csv.writer(f2)
+                f2_writer.writerow(row)
+        print('n_NotConstructiveOrOffTopic : {}'.format(n_NotConstructiveOrOffTopic))
+        print('n_TooChatty : {}'.format(n_TooChatty))
+        print('n_RudeOrOffensive : {}'.format(n_RudeOrOffensive))
+        print('n_Unwelcoming : {}'.format(n_Unwelcoming))
+
+def get_f2_sample():
+    #f1 = open('../data/ALW/f1.csv', 'a', encoding='utf-8')
+    f2='../data/ALW/f2.csv'
+    f1='../data/ALW/f1_new.csv'
+    len_f1=sum(1 for line in open(f1, encoding='utf-8',errors='ignore')) - 1
+    print(len_f1)
+    n = sum(1 for line in open(f2, encoding='utf-8')) - 1
+    s = 8*len_f1
+    skip = sorted(random.sample(range(1, n + 1), n - s))
+    df = pd.read_csv(f2, skiprows=skip)
+    sample_file = '../data/ALW/f2_new.csv'
+    df.to_csv(sample_file,index=False,header=False)
+
+
+
+
 
 
 
@@ -141,4 +190,7 @@ if __name__=='__main__':
     #save_sample(stack_comments_file)
     #read_sample(stack_comments_file)\
     #analyze(stack_comments_file)
-    new_sample(stack_comments_file)
+    #new_sample(stack_comments_file)
+    #get_data(stack_comments_file)
+    #get_f2_sample()
+
