@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5b00ba78-b6a4-484a-8b62-1d62fd8639b8" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/read_data.py" afterPath="" />
-      <change beforePath="$PROJECT_DIR$/settings.py" afterPath="" />
+      <change beforePath="$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py" afterPath="$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -28,11 +27,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="wiki_data_collections.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="wiki_data_collections.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/data_collections/wiki_data_collections.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="237">
-              <caret line="17" column="0" lean-forward="true" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
+            <state relative-caret-position="432">
+              <caret line="18" column="39" lean-forward="true" selection-start-line="18" selection-start-column="39" selection-end-line="18" selection-end-column="39" />
               <folding>
                 <element signature="e#25#44#0" expanded="true" />
               </folding>
@@ -40,13 +39,14 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="stackoverflow_data_collections.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="stackoverflow_data_collections.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-717">
-              <caret line="135" column="19" lean-forward="true" selection-start-line="135" selection-start-column="19" selection-end-line="135" selection-end-column="19" />
+            <state relative-caret-position="627">
+              <caret line="192" column="0" lean-forward="true" selection-start-line="192" selection-start-column="0" selection-end-line="192" selection-end-column="0" />
               <folding>
                 <element signature="e#49#59#0" expanded="true" />
+                <marker date="1565308152870" expanded="true" signature="6833:7102" ph="..." />
               </folding>
             </state>
           </provider>
@@ -64,8 +64,8 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/data_collections/settings.py" />
-        <option value="$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py" />
         <option value="$PROJECT_DIR$/data_collections/wiki_data_collections.py" />
+        <option value="$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py" />
       </list>
     </option>
   </component>
@@ -256,22 +256,23 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py">
+    <entry file="file://$PROJECT_DIR$/data_collections/wiki_data_collections.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-717">
-          <caret line="135" column="19" lean-forward="true" selection-start-line="135" selection-start-column="19" selection-end-line="135" selection-end-column="19" />
+        <state relative-caret-position="432">
+          <caret line="18" column="39" lean-forward="true" selection-start-line="18" selection-start-column="39" selection-end-line="18" selection-end-column="39" />
           <folding>
-            <element signature="e#49#59#0" expanded="true" />
+            <element signature="e#25#44#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/data_collections/wiki_data_collections.py">
+    <entry file="file://$PROJECT_DIR$/data_collections/stackoverflow_data_collections.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="237">
-          <caret line="17" column="0" lean-forward="true" selection-start-line="17" selection-start-column="0" selection-end-line="17" selection-end-column="0" />
+        <state relative-caret-position="627">
+          <caret line="192" column="0" lean-forward="true" selection-start-line="192" selection-start-column="0" selection-end-line="192" selection-end-column="0" />
           <folding>
-            <element signature="e#25#44#0" expanded="true" />
+            <element signature="e#49#59#0" expanded="true" />
+            <marker date="1565308152870" expanded="true" signature="6833:7102" ph="..." />
           </folding>
         </state>
       </provider>
