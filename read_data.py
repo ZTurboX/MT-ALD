@@ -3,7 +3,7 @@
 import csv
 import random
 import pandas as pd
-
+from settings import *
 
 
 def save_sample(file):
@@ -23,7 +23,7 @@ def read_sample(file):
     s=1000
     skip=sorted(random.sample(range(1,n+1),n-s))
     df=pd.read_csv(file,skiprows=skip)
-    sample_file = '../data/ALW/sample.csv'
+    sample_file = stack_overflow_sample+'/sample.csv'
     df.to_csv(sample_file)
 
 def analyze(file):
@@ -97,11 +97,9 @@ def analyze(file):
 
 def new_sample(file):
     df_chunk = pd.read_csv(file, chunksize=10000)
-    new_file='../data/ALW/test.csv'
-    f1='../data/ALW/f1.csv'
-    f2='../data/ALW/f2.csv'
-
-
+    new_file=stack_overflow_sample+'/test.csv'
+    f1=stack_overflow_sample+'/f1.csv'
+    f2=stack_overflow_sample+'/f2.csv'
     total_number=0
     count=0
     for df in df_chunk:
@@ -139,14 +137,15 @@ def get_data(file):
     n_TooChatty = 0
     n_RudeOrOffensive = 0
     n_Unwelcoming = 0
-    f1=open('../data/ALW/f1.csv','a',encoding='utf-8')
-    f2 = open('../data/ALW/f2.csv', 'a', encoding='utf-8')
+    f1=open(stack_overflow_sample+'/f1.csv','a',encoding='utf-8')
+    f2 = open(stack_overflow_sample+'/f2.csv', 'a', encoding='utf-8')
 
     with open(file,'r',encoding='utf-8') as csvfile:
         data=csv.reader(csvfile,delimiter=',')
 
         for index,row in enumerate(data):
-            print("read item: {}".format(index+1))
+            if index%50000==0:
+                print("read item: {}".format(index+1))
             flag=row[2]
             flag = str(flag).strip().split()
             flag = ''.join(flag)
@@ -167,15 +166,15 @@ def get_data(file):
 
 def get_f2_sample():
     #f1 = open('../data/ALW/f1.csv', 'a', encoding='utf-8')
-    f2='../data/ALW/f2.csv'
-    f1='../data/ALW/f1_new.csv'
+    f2=stack_overflow_sample+'/f2.csv'
+    f1=stack_overflow_sample+'/f1.csv'
     len_f1=sum(1 for line in open(f1, encoding='utf-8',errors='ignore')) - 1
     print(len_f1)
     n = sum(1 for line in open(f2, encoding='utf-8')) - 1
     s = 8*len_f1
     skip = sorted(random.sample(range(1, n + 1), n - s))
     df = pd.read_csv(f2, skiprows=skip)
-    sample_file = '../data/ALW/f2_new.csv'
+    sample_file = stack_overflow_sample+'/f2_new.csv'
     df.to_csv(sample_file,index=False,header=False)
 
 
@@ -185,12 +184,11 @@ def get_f2_sample():
 
 
 if __name__=='__main__':
-    stack_comments_file='../data/ALW/stack_comments.csv'
-    #read_csv(stack_comments_file)
-    #save_sample(stack_comments_file)
-    #read_sample(stack_comments_file)\
-    #analyze(stack_comments_file)
-    #new_sample(stack_comments_file)
-    #get_data(stack_comments_file)
-    #get_f2_sample()
+    stack_comments_file=stack_overflow+'/stack_comments.csv'
+#     save_sample(stack_comments_file)
+#     read_sample(stack_comments_file)
+#     analyze(stack_comments_file)
+#     new_sample(stack_comments_file)
+    get_data(stack_comments_file)
+    get_f2_sample()
 
