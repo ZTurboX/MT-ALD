@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-
+# coding: unicode_escape
 import csv
 import random
 import pandas as pd
-from settings import *
-
+from data_collections.settings import *
 
 def save_sample(file):
     df=pd.read_csv(file)
@@ -96,8 +95,8 @@ def analyze(file):
     print('Comment Other : {}'.format(n_Other))
 
 def new_sample(file):
-    df_chunk = pd.read_csv(file, chunksize=10000)
-    new_file=stack_overflow_sample+'/test.csv'
+    df_chunk = pd.read_csv(file, sep=',',chunksize=10000)
+
     f1=stack_overflow_sample+'/f1.csv'
     f2=stack_overflow_sample+'/f2.csv'
     total_number=0
@@ -128,8 +127,8 @@ def new_sample(file):
                 f2_list.append([commentDate,text,flag])
         f1_data=pd.DataFrame(data=f1_list,columns=['CommentDate','Text','Flag'])
         f2_data=pd.DataFrame(data=f2_list,columns=['CommentDate','Text','Flag'])
-        f1_data.to_csv(f1,index=False,mode='a',header=False,encoding='utf-8')
-        f2_data.to_csv(f2,index=False,mode='a',header=False,encoding='utf-8')
+        f1_data.to_csv(f1,index=False,mode='a',encoding='utf-8')
+        f2_data.to_csv(f2,index=False,mode='a',encoding='utf-8')
 
 
 def get_data(file):
@@ -177,7 +176,18 @@ def get_f2_sample():
     sample_file = stack_overflow_sample+'/f2_new.csv'
     df.to_csv(sample_file,index=False,header=False)
 
+def get_new_data():
+    f2 = stack_overflow_sample + '/f2.csv'
+    f1 = stack_overflow_sample + '/f1.csv'
+    len_f1 = sum(1 for line in open(f1, encoding='utf-8', errors='ignore')) - 1
+    len_f2 = sum(1 for line in open(f2, encoding='utf-8', errors='ignore')) - 1
+    print("len_f1:{}".format(len_f1))
+    print("len_f2:{}".format(len_f2))
+    f2=pd.read_csv(stack_overflow_sample+'/f2.csv',sep=',',encoding='utf-8')
+    f2.to_csv(stack_overflow_sample+'/f1.csv',mode='a')
 
+    len_data = sum(1 for line in open(f1, encoding='utf-8', errors='ignore')) - 1
+    print("new_data:{}".format(len_data))
 
 
 
@@ -189,6 +199,7 @@ if __name__=='__main__':
 #     read_sample(stack_comments_file)
 #     analyze(stack_comments_file)
 #     new_sample(stack_comments_file)
-    get_data(stack_comments_file)
-    get_f2_sample()
+    #get_data(stack_comments_file)
+    #get_f2_sample()
+    get_new_data()
 
