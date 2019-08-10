@@ -176,6 +176,32 @@ def get_f2_sample():
     sample_file = stack_overflow_sample+'/f2_new.csv'
     df.to_csv(sample_file,index=False,header=False)
 
+def get_new_data():
+    new_data_file=open(stack_overflow_sample+'/new_data.csv','a',encoding='utf-8',newline='')
+    new_data_writer = csv.writer(new_data_file,delimiter=',',dialect='excel')
+    new_data_writer.writerow(["CommentDate","Text","Flag"])
+    f1=open(stack_overflow_sample+'/f1_new.csv','r',encoding='utf-8',errors='ignore')
+    f2 = open(stack_overflow_sample + '/f2_new.csv', 'r', encoding='utf-8', errors='ignore')
+    f1_data=csv.reader(f1,delimiter=',')
+    f2_data=csv.reader(f2,delimiter=',')
+    f1_count=0
+    f2_count=0
+    for i,row in enumerate(f1_data):
+        new_data_writer.writerow(row)
+        f1_count=i
+    print("f1 len:{}".format(f1_count))
+    for i,row in enumerate(f2_data):
+        new_data_writer.writerow(row)
+        f2_count=i
+    print("f2 len:{}".format(f2_count))
+    new_data_file.close()
+
+    count=0
+    file = open(stack_overflow_sample + '/new_data.csv', 'r', encoding='utf-8', errors='ignore')
+    new_data=csv.reader(file,delimiter=',')
+    for i,row in enumerate(new_data):
+        count=i
+    print("new data len:{}".format(count))
 
 
 
@@ -190,5 +216,10 @@ if __name__=='__main__':
 #     new_sample(stack_comments_file)
     #get_data(stack_comments_file)
     #get_f2_sample()
+    #get_new_data()
+
+
+
+
 
 
