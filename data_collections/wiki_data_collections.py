@@ -31,6 +31,3 @@ all_data_combine=agressive_comments.join([attack_comments['attack'],toxic_commen
 all_data=all_data_combine[all_data_combine.toxicity.notnull()]
 
 all_data.to_csv(wiki_data)
-
-
-
