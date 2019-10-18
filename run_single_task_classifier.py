@@ -7,6 +7,8 @@ import logging
 import os
 import random
 
+import csv
+import sys
 import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
@@ -30,7 +32,7 @@ from transformers import glue_compute_metrics as compute_metrics
 
 
 from transformers import glue_convert_examples_to_features as convert_examples_to_features
-from transformers import DataProcessor,InputExample
+from transformers import InputExample
 
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,41 @@ def set_seed(args):
     torch.manual_seed(args.seed)
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
+class DataProcessor(object):
+    """Base class for data converters for sequence classification data sets."""
+
+    def get_example_from_tensor_dict(self, tensor_dict):
+        """Gets an example from a dict with tensorflow tensors
+
+        Args:
+            tensor_dict: Keys and values should match the corresponding Glue
+                tensorflow_dataset examples.
+        """
+        raise NotImplementedError()
+
+    def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        raise NotImplementedError()
+
+    def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the dev set."""
+        raise NotImplementedError()
+
+    def get_labels(self):
+        """Gets the list of labels for this data set."""
+        raise NotImplementedError()
+
+    @classmethod
+    def _read_tsv(cls, input_file, quotechar=None):
+        """Reads a tab separated value file."""
+        with open(input_file, "r", encoding="utf-8-sig") as f:
+            reader = csv.reader(f, delimiter=",", quotechar=quotechar)
+            lines = []
+            for line in reader:
+                if sys.version_info[0] == 2:
+                    line = list(str(cell, 'utf-8') for cell in line)
+                lines.append(line)
+            return lines
 
 class AggressionProcessor(DataProcessor):
     """Processor for the CoLA data set (GLUE version)."""
@@ -74,14 +111,15 @@ class AggressionProcessor(DataProcessor):
         """Creates examples for the training and dev sets."""
         train_examples = []
         dev_examples=[]
-        for (i, line) in enumerate(lines):
+        for  i in range(len(lines)):
             if i>0:
+                line=lines[i]
                 guid = "%s-%s" % (set_type, i)
-                text_a = line[1]
+                text_a = ''.join(line[1:-8])
                 text_a = text_a.replace("NEWLINE_TOKEN", "")
                 text_a = text_a.replace("TAB_TOKEN", "")
-                mode=line[6]
-                label = line[7]
+                mode=line[-4]
+                label = line[-3]
                 if label=='True':
                     label='1'
                 elif label=='False':
@@ -336,11 +374,11 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--data_dir", default="./data/all_data.tsv", type=str,
+    parser.add_argument("--data_dir", default="./data", type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--model_type", default="bert", type=str,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
-    parser.add_argument("--model_name_or_path", default="bert-base-uncased", type=str,
+    parser.add_argument("--model_name_or_path", default="./bert-base-uncased/bert-base-uncased-pytorch_model.bin", type=str,
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(
                             ALL_MODELS))
 
@@ -350,20 +388,20 @@ def main():
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
-    parser.add_argument("--config_name", default="bert-base-uncased", type=str,
+    parser.add_argument("--config_name", default="./bert-base-uncased/bert-base-uncased-config.json", type=str,
                         help="Pretrained config name or path if not the same as model_name")
-    parser.add_argument("--tokenizer_name", default="bert-base-uncased", type=str,
+    parser.add_argument("--tokenizer_name", default="./bert-base-uncased/bert-base-uncased-vocab.txt", type=str,
                         help="Pretrained tokenizer name or path if not the same as model_name")
     parser.add_argument("--cache_dir", default="", type=str,
                         help="Where do you want to store the pre-trained models downloaded from s3")
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
-    parser.add_argument("--do_train", action='store_true', help="Whether to run training.")
-    parser.add_argument("--do_eval", action='store_true', help="Whether to run eval on the dev set.")
-    parser.add_argument("--evaluate_during_training", action='store_true',
+    parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
+    parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
+    parser.add_argument("--evaluate_during_training", default=True,action='store_true',
                         help="Rul evaluation during training at each logging step.")
-    parser.add_argument("--do_lower_case", action='store_true', help="Set this flag if you are using an uncased model.")
+    parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
     parser.add_argument("--per_gpu_train_batch_size", default=8, type=int, help="Batch size per GPU/CPU for training.")
     parser.add_argument("--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation.")
