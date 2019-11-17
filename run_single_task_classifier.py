@@ -28,7 +28,7 @@ from transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClassificatio
 
 from transformers import AdamW, WarmupLinearSchedule
 
-from transformers import glue_compute_metrics as compute_metrics
+from compute_accuracy import glue_compute_metrics as compute_metrics
 
 
 from transformers import glue_convert_examples_to_features as convert_examples_to_features
@@ -99,7 +99,7 @@ class AggressionProcessor(DataProcessor):
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        _,dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "train")
+        _,dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "dev")
         return dev_examples
 
     def get_labels(self):

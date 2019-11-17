@@ -1,2 +1,6 @@
 data/
 bert-base-uncased/
+runs/
+check_ponits/checkpoint-50/
+check_ponits/checkpoint-100/
+check_ponits/checkpoint-150/
