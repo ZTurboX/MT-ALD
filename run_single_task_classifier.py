@@ -32,7 +32,7 @@ from compute_accuracy import glue_compute_metrics as compute_metrics
 
 
 from transformers import glue_convert_examples_to_features as convert_examples_to_features
-from transformers import InputExample
+from data_processor import AggressionProcessor
 
 
 logger = logging.getLogger(__name__)
@@ -53,82 +53,7 @@ def set_seed(args):
     torch.manual_seed(args.seed)
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
-class DataProcessor(object):
-    """Base class for data converters for sequence classification data sets."""
 
-    def get_example_from_tensor_dict(self, tensor_dict):
-        """Gets an example from a dict with tensorflow tensors
-
-        Args:
-            tensor_dict: Keys and values should match the corresponding Glue
-                tensorflow_dataset examples.
-        """
-        raise NotImplementedError()
-
-    def get_train_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the train set."""
-        raise NotImplementedError()
-
-    def get_dev_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the dev set."""
-        raise NotImplementedError()
-
-    def get_labels(self):
-        """Gets the list of labels for this data set."""
-        raise NotImplementedError()
-
-    @classmethod
-    def _read_tsv(cls, input_file, quotechar=None):
-        """Reads a tab separated value file."""
-        with open(input_file, "r", encoding="utf-8-sig") as f:
-            reader = csv.reader(f, delimiter=",", quotechar=quotechar)
-            lines = []
-            for line in reader:
-                if sys.version_info[0] == 2:
-                    line = list(str(cell, 'utf-8') for cell in line)
-                lines.append(line)
-            return lines
-
-class AggressionProcessor(DataProcessor):
-    """Processor for the CoLA data set (GLUE version)."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_examples,_=self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "train")
-        return train_examples
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        _,dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "dev")
-        return dev_examples
-
-    def get_labels(self):
-        """See base class."""
-        return ["0", "1"]
-
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        train_examples = []
-        dev_examples=[]
-        for  i in range(len(lines)):
-            if i>0:
-                line=lines[i]
-                guid = "%s-%s" % (set_type, i)
-                text_a = ''.join(line[1:-8])
-                text_a = text_a.replace("NEWLINE_TOKEN", "")
-                text_a = text_a.replace("TAB_TOKEN", "")
-                mode=line[-4]
-                label = line[-3]
-                if label=='True':
-                    label='1'
-                elif label=='False':
-                    label='0'
-                if mode=='train':
-                    train_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-                elif mode=='dev':
-                    dev_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-        return train_examples,dev_examples
 
 
 processors = {"aggression": AggressionProcessor, }
@@ -384,7 +309,7 @@ def main():
 
     parser.add_argument("--task_name", default="aggression", type=str,
                         help="The name of the task to train selected in the list: " + ", ".join(processors.keys()))
-    parser.add_argument("--output_dir", default='./check_ponits', type=str,
+    parser.add_argument("--output_dir", default='./check_points', type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
@@ -397,9 +322,9 @@ def main():
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
-    parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
+    parser.add_argument("--do_train", default=False,action='store_true', help="Whether to run training.")
     parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
-    parser.add_argument("--evaluate_during_training", default=True,action='store_true',
+    parser.add_argument("--evaluate_during_training", default=False,action='store_true',
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
