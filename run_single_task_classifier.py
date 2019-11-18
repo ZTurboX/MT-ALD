@@ -7,8 +7,7 @@ import logging
 import os
 import random
 
-import csv
-import sys
+
 import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
@@ -21,14 +20,11 @@ except:
 
 from tqdm import tqdm, trange
 
-from transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClassification, BertTokenizer, RobertaConfig,
-                          RobertaForSequenceClassification, RobertaTokenizer, XLMConfig, XLMForSequenceClassification,
-                          XLMTokenizer, XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer, DistilBertConfig,
-                          DistilBertForSequenceClassification, DistilBertTokenizer)
+from transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClassification, BertTokenizer)
 
 from transformers import AdamW, WarmupLinearSchedule
 
-from compute_accuracy import glue_compute_metrics as compute_metrics
+from compute_score import compute_metrics
 
 
 from transformers import glue_convert_examples_to_features as convert_examples_to_features
@@ -39,13 +35,9 @@ from data_processor import AggressionProcessor
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in
-                  (BertConfig, XLNetConfig, XLMConfig, RobertaConfig, DistilBertConfig)), ())
+                  (BertConfig,)), ())
 
-MODEL_CLASSES = {'bert': (BertConfig, BertForSequenceClassification, BertTokenizer),
-    'xlnet': (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-    'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-    'roberta': (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer)}
+MODEL_CLASSES = {'bert': (BertConfig, BertForSequenceClassification, BertTokenizer)}
 
 
 def set_seed(args):
@@ -191,8 +183,8 @@ def train(args, train_dataset, model, tokenizer):
 
 def evaluate(args, model, tokenizer, prefix=""):
     # Loop to handle MNLI double evaluation (matched, mis-matched)
-    eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
-    eval_outputs_dirs = (args.output_dir, args.output_dir + '-MM') if args.task_name == "mnli" else (args.output_dir,)
+    eval_task_names = args.task_name
+    eval_outputs_dirs = args.output_dir
 
     results = {}
     for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
@@ -268,9 +260,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     else:
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
-        if task in ['mnli', 'mnli-mm'] and args.model_type in ['roberta']:
-            # HACK(label indices are swapped in RoBERTa pretrained model)
-            label_list[1], label_list[2] = label_list[2], label_list[1]
+
         examples = processor.get_dev_examples(args.data_dir) if evaluate else processor.get_train_examples(
             args.data_dir)
         features = convert_examples_to_features(examples, tokenizer, label_list=label_list,
