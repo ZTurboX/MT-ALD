@@ -39,5 +39,9 @@ if _has_sklearn:
 
         if task_name=="aggression":
             return {"score": score(preds, labels)}
+        elif task_name=="attack":
+            return {"score": score(preds, labels)}
+        elif task_name=="toxicity":
+            return {"score": score(preds, labels)}
         else:
             raise KeyError(task_name)

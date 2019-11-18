@@ -28,7 +28,7 @@ from compute_score import compute_metrics
 
 
 from transformers import glue_convert_examples_to_features as convert_examples_to_features
-from data_processor import AggressionProcessor
+from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor
 
 
 
@@ -49,8 +49,8 @@ def set_seed(args):
 
 
 
-processors = {"aggression": AggressionProcessor,}
-output_modes = {"aggression": "classification", }
+processors = {"aggression": AggressionProcessor,"attack":AttackProcessor,"toxicity":ToxicityProcessor,}
+output_modes = {"aggression": "classification", "attack":"classification","toxicity":"classification",}
 
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
@@ -183,8 +183,8 @@ def train(args, train_dataset, model, tokenizer):
 
 def evaluate(args, model, tokenizer, prefix=""):
     # Loop to handle MNLI double evaluation (matched, mis-matched)
-    eval_task_names = args.task_name
-    eval_outputs_dirs = args.output_dir
+    eval_task_names = (args.task_name,)
+    eval_outputs_dirs = (args.output_dir,)
 
     results = {}
     for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
