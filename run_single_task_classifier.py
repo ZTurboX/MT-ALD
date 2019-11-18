@@ -35,6 +35,7 @@ from transformers import glue_convert_examples_to_features as convert_examples_t
 from data_processor import AggressionProcessor
 
 
+
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in
@@ -56,7 +57,7 @@ def set_seed(args):
 
 
 
-processors = {"aggression": AggressionProcessor, }
+processors = {"aggression": AggressionProcessor,}
 output_modes = {"aggression": "classification", }
 
 def train(args, train_dataset, model, tokenizer):
@@ -150,8 +151,11 @@ def train(args, train_dataset, model, tokenizer):
                     # Log metrics
                     if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
                         results = evaluate(args, model, tokenizer)
-                        for key, value in results.items():
+                        '''
+                                                for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
+                        '''
+
                     tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
                     tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
                     logging_loss = tr_loss
@@ -322,9 +326,9 @@ def main():
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
-    parser.add_argument("--do_train", default=False,action='store_true', help="Whether to run training.")
+    parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
     parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
-    parser.add_argument("--evaluate_during_training", default=False,action='store_true',
+    parser.add_argument("--evaluate_during_training", default=True,action='store_true',
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 

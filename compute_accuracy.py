@@ -46,7 +46,7 @@ if _has_sklearn:
             "acc": acc,
             "f1": f1,
             "precision":precision,
-            "recall":recall
+            "recall":recall,
         }
 
 

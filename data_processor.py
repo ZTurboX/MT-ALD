@@ -74,6 +74,96 @@ class AggressionProcessor(DataProcessor):
                 text_a = text_a.replace("TAB_TOKEN", "")
                 mode=line[-4]
                 label = line[-3]
+                '''
+                attack=line[-2]
+                toxicity=line[-1]
+                '''
+                if label=='True':
+                    label='1'
+                elif label=='False':
+                    label='0'
+                if mode=='train':
+                    train_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+                elif mode=='dev':
+                    dev_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return train_examples,dev_examples
+
+
+
+class AttackProcessor(DataProcessor):
+    """Processor for the CoLA data set (GLUE version)."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        train_examples,_=self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "train")
+        return train_examples
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        _,dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "dev")
+        return dev_examples
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        train_examples = []
+        dev_examples=[]
+        for  i in range(len(lines)):
+            if i>0:
+                line=lines[i]
+                guid = "%s-%s" % (set_type, i)
+                text_a = ''.join(line[1:-8])
+                text_a = text_a.replace("NEWLINE_TOKEN", "")
+                text_a = text_a.replace("TAB_TOKEN", "")
+                mode=line[-4]
+                label = line[-2]
+        
+                if label=='True':
+                    label='1'
+                elif label=='False':
+                    label='0'
+                if mode=='train':
+                    train_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+                elif mode=='dev':
+                    dev_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return train_examples,dev_examples
+
+class ToxicityProcessor(DataProcessor):
+    """Processor for the CoLA data set (GLUE version)."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        train_examples,_=self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "train")
+        return train_examples
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        _,dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "dev")
+        return dev_examples
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        train_examples = []
+        dev_examples=[]
+        for  i in range(len(lines)):
+            if i>0:
+                line=lines[i]
+                guid = "%s-%s" % (set_type, i)
+                text_a = ''.join(line[1:-8])
+                text_a = text_a.replace("NEWLINE_TOKEN", "")
+                text_a = text_a.replace("TAB_TOKEN", "")
+                mode=line[-4]
+                label = line[-1]
+    
                 if label=='True':
                     label='1'
                 elif label=='False':
