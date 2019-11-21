@@ -20,24 +20,24 @@ except:
 
 from tqdm import tqdm, trange
 
-from transformers import (WEIGHTS_NAME, BertConfig, BertForSequenceClassification, BertTokenizer)
+from transformers import (WEIGHTS_NAME, BertConfig, BertModel, BertTokenizer)
 
 from transformers import AdamW, WarmupLinearSchedule
 
 from compute_score import compute_metrics
 
 
-from transformers import glue_convert_examples_to_features as convert_examples_to_features
-from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor
+from utils import glue_convert_examples_to_features as convert_examples_to_features
+from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor,Multi_Task_Processor
 
-
+from multi_task_model import Multi_Model
 
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in
                   (BertConfig,)), ())
 
-MODEL_CLASSES = {'bert': (BertConfig, BertForSequenceClassification, BertTokenizer)}
+MODEL_CLASSES = {'bert': (BertConfig, BertModel, BertTokenizer)}
 
 
 def set_seed(args):
@@ -49,8 +49,8 @@ def set_seed(args):
 
 
 
-processors = {"aggression": AggressionProcessor,"attack":AttackProcessor,"toxicity":ToxicityProcessor,}
-output_modes = {"aggression": "classification", "attack":"classification","toxicity":"classification",}
+processors = {"aggression": AggressionProcessor,"attack":AttackProcessor,"toxicity":ToxicityProcessor,"multi_task":Multi_Task_Processor}
+output_modes = {"aggression": "classification", "attack":"classification","toxicity":"classification","multi_task":"classification"}
 
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
@@ -60,6 +60,10 @@ def train(args, train_dataset, model, tokenizer):
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+
+    aggression_embed = torch.tensor(tokenizer.encode("aggression"),dtype=torch.long).to(args.device)
+    attack_embed = torch.tensor(tokenizer.encode("attack"),dtype=torch.long).to(args.device)
+    toxicity_embed = torch.tensor(tokenizer.encode("toxicity"),dtype=torch.long).to(args.device)
 
     if args.max_steps > 0:
         t_total = args.max_steps
@@ -112,12 +116,15 @@ def train(args, train_dataset, model, tokenizer):
         for step, batch in enumerate(epoch_iterator):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
-            inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'labels': batch[3]}
+            inputs = {'input_ids': batch[0], 'attention_mask': batch[1],
+                      'aggression_labels': batch[3],'attack_labels': batch[4],'toxicity_labels': batch[5],
+                      'aggression_embed':aggression_embed,'attack_embed':attack_embed,'toxicity_embed':toxicity_embed}
             if args.model_type != 'distilbert':
                 inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
-            outputs = model(**inputs)
-            loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
+
+            aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
+            #loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -186,7 +193,9 @@ def evaluate(args, model, tokenizer, prefix=""):
     eval_task_names = (args.task_name,)
     eval_outputs_dirs = (args.output_dir,)
 
-    results = {}
+    aggression_results = {}
+    attack_results={}
+    toxicity_results={}
     for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
         eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
 
@@ -198,51 +207,99 @@ def evaluate(args, model, tokenizer, prefix=""):
         eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
+        aggression_embed = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
+        attack_embed = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
+        toxicity_embed = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+
+
         # Eval!
         logger.info("***** Running evaluation {} *****".format(prefix))
         logger.info("  Num examples = %d", len(eval_dataset))
         logger.info("  Batch size = %d", args.eval_batch_size)
         eval_loss = 0.0
         nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
+        aggression_preds = None
+        attack_preds=None
+        toxicity_preds=None
+        aggression_out_label_ids = None
+        attack_out_label_ids=None
+        toxicity_out_label_ids=None
         for batch in tqdm(eval_dataloader, desc="Evaluating"):
             model.eval()
             batch = tuple(t.to(args.device) for t in batch)
 
             with torch.no_grad():
-                inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'labels': batch[3]}
+                inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'aggression_labels': batch[3],
+                          'attack_labels': batch[4], 'toxicity_labels': batch[5], 'aggression_embed': aggression_embed,
+                          'attack_embed': attack_embed, 'toxicity_embed': toxicity_embed}
                 if args.model_type != 'distilbert':
                     inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                                'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+
+                aggression_logits, attack_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
+
 
                 eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs['labels'].detach().cpu().numpy()
+            if aggression_preds is None and attack_preds is None and toxicity_preds is None:
+                aggression_preds = aggression_logits.detach().cpu().numpy()
+                aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
+
+                attack_preds = attack_logits.detach().cpu().numpy()
+                attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
+
+                toxicity_preds = toxicity_logits.detach().cpu().numpy()
+                toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
             else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
+                aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
+                aggression_out_label_ids = np.append(aggression_out_label_ids, inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
+
+                attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
+                attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
+
+                toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
+                toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
         if args.output_mode == "classification":
-            preds = np.argmax(preds, axis=1)
+            aggression_preds = np.argmax(aggression_preds, axis=1)
+            attack_preds = np.argmax(attack_preds, axis=1)
+            toxicity_preds = np.argmax(toxicity_preds, axis=1)
         elif args.output_mode == "regression":
             preds = np.squeeze(preds)
-        result = compute_metrics(eval_task, preds, out_label_ids)
-        results.update(result)
 
-        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results {} *****".format(prefix))
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
+        aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
+        aggression_results.update(aggression_result)
 
-    return results
+        attack_result = compute_metrics(eval_task, attack_preds, attack_out_label_ids)
+        attack_results.update(attack_result)
+
+        toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
+        toxicity_results.update(toxicity_result)
+
+
+        aggression_output_eval_file = os.path.join(eval_output_dir, prefix, "aggression_eval_results.txt")
+        attack_output_eval_file = os.path.join(eval_output_dir, prefix, "attack_eval_results.txt")
+        toxicity_output_eval_file = os.path.join(eval_output_dir, prefix, "toxicity_eval_results.txt")
+        with open(aggression_output_eval_file, "w") as writer:
+            logger.info("***** Eval aggression results {} *****".format(prefix))
+            for key in sorted(aggression_result.keys()):
+                logger.info("  %s = %s", key, str(aggression_result[key]))
+                writer.write("%s = %s\n" % (key, str(aggression_result[key])))
+
+        with open(attack_output_eval_file, "w") as writer:
+            logger.info("***** Eval attack results {} *****".format(prefix))
+            for key in sorted(attack_result.keys()):
+                logger.info("  %s = %s", key, str(attack_result[key]))
+                writer.write("%s = %s\n" % (key, str(attack_result[key])))
+
+        with open(toxicity_output_eval_file, "w") as writer:
+            logger.info("***** Eval toxicity results {} *****".format(prefix))
+            for key in sorted(toxicity_result.keys()):
+                logger.info("  %s = %s", key, str(toxicity_result[key]))
+                writer.write("%s = %s\n" % (key, str(toxicity_result[key])))
+
+    return aggression_results,attack_results,toxicity_results
 
 
 def load_and_cache_examples(args, task, tokenizer, evaluate=False):
@@ -280,12 +337,13 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
     all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
-    if output_mode == "classification":
-        all_labels = torch.tensor([f.label for f in features], dtype=torch.long)
-    elif output_mode == "regression":
-        all_labels = torch.tensor([f.label for f in features], dtype=torch.float)
 
-    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
+    aggression_all_label=torch.tensor([f.aggression_label for f in features], dtype=torch.long)
+    attack_all_label_label=torch.tensor([f.attack_label for f in features], dtype=torch.long)
+    toxicity_all_label=torch.tensor([f.toxicity_label for f in features], dtype=torch.long)
+
+
+    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, aggression_all_label,attack_all_label_label,toxicity_all_label)
     return dataset
 
 
@@ -301,7 +359,7 @@ def main():
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(
                             ALL_MODELS))
 
-    parser.add_argument("--task_name", default="aggression", type=str,
+    parser.add_argument("--task_name", default="multi_task", type=str,
                         help="The name of the task to train selected in the list: " + ", ".join(processors.keys()))
     parser.add_argument("--output_dir", default='./check_points', type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
@@ -330,7 +388,7 @@ def main():
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=3.0, type=float,
+    parser.add_argument("--num_train_epochs", default=10.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
@@ -383,7 +441,8 @@ def main():
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        args.n_gpu = torch.cuda.device_count()
+        #args.n_gpu = torch.cuda.device_count()
+        args.n_gpu = 1
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
@@ -432,12 +491,19 @@ def main():
 
     args.model_type = args.model_type.lower()
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
-    config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,
+
+    bert_config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,
                                           num_labels=num_labels, finetuning_task=args.task_name)
+   
+    bert_model = model_class.from_pretrained(args.model_name_or_path, from_tf=bool('.ckpt' in args.model_name_or_path),
+                                        config=bert_config)
+
+
+
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.bert_vocab,
                                                 do_lower_case=args.do_lower_case)
-    model = model_class.from_pretrained(args.model_name_or_path, from_tf=bool('.ckpt' in args.model_name_or_path),
-                                        config=config)
+
+    model=Multi_Model(bert_config,bert_model)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -471,6 +537,8 @@ def main():
 
         # Load a trained model and vocabulary that you have fine-tuned
         model = model_class.from_pretrained(args.output_dir)
+        #model_dir= os.path.join(args.output_dir, 'pytorch_model.bin')
+        #model.load_pretrained(model_dir)
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
         model.to(args.device)
 
@@ -489,12 +557,19 @@ def main():
             prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
 
             model = model_class.from_pretrained(checkpoint)
+            #model = torch.load(checkpoint)
+            #checkpoint=os.path.join(checkpoint, 'pytorch_model.bin')
+            #model.load_pretrained(checkpoint)
             model.to(args.device)
-            result = evaluate(args, model, tokenizer, prefix=prefix)
-            result = dict((k + '_{}'.format(global_step), v) for k, v in result.items())
-            results.update(result)
+            aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer, prefix=prefix)
+            aggression_result = dict((k + '_{}'.format(global_step), v) for k, v in aggression_results.items())
+            attack_result = dict((k + '_{}'.format(global_step), v) for k, v in attack_results.items())
+            toxicity_result = dict((k + '_{}'.format(global_step), v) for k, v in toxicity_results.items())
+            aggression_results.update(aggression_result)
+            attack_results.update(attack_result)
+            toxicity_results.update(toxicity_result)
 
-    return results
+    return aggression_results, attack_results, toxicity_results
 
 
 if __name__ == "__main__":

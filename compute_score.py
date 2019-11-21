@@ -35,6 +35,8 @@ if _has_sklearn:
 
 
     def compute_metrics(task_name, preds, labels):
+        print("preds:",len(preds))
+        print("label:",len(labels))
         assert len(preds) == len(labels)
 
         if task_name=="aggression":
@@ -42,6 +44,8 @@ if _has_sklearn:
         elif task_name=="attack":
             return {"score": score(preds, labels)}
         elif task_name=="toxicity":
+            return {"score": score(preds, labels)}
+        elif task_name=="multi_task":
             return {"score": score(preds, labels)}
         else:
             raise KeyError(task_name)

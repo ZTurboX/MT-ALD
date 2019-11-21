@@ -173,3 +173,49 @@ class ToxicityProcessor(DataProcessor):
                 elif mode=='dev':
                     dev_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
         return train_examples,dev_examples
+
+
+class Multi_Task_Processor(DataProcessor):
+    """Processor for the CoLA data set (GLUE version)."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        train_examples, _ = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "train")
+        return train_examples
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        _, dev_examples, = self._create_examples(self._read_tsv(os.path.join(data_dir, "all_data.tsv")), "dev")
+        return dev_examples
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        train_examples = []
+        dev_examples = []
+        for i in range(len(lines)):
+            if i > 0:
+                line = lines[i]
+                guid = "%s-%s" % (set_type, i)
+                text_a = ''.join(line[1:-8])
+                text_a = text_a.replace("NEWLINE_TOKEN", "")
+                text_a = text_a.replace("TAB_TOKEN", "")
+                mode = line[-4]
+                aggression_label = line[-3]
+                attack_label=line[-2]
+                toxicity_label=line[-1]
+
+                label=[]
+                label.append('1' if aggression_label=='True' else '0')
+                label.append('1' if attack_label == 'True' else '0')
+                label.append('1' if toxicity_label == 'True' else '0')
+
+
+                if mode == 'train':
+                    train_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+                elif mode == 'dev':
+                    dev_examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return train_examples, dev_examples
