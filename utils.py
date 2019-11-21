@@ -2,7 +2,13 @@ import copy
 import json
 import logging
 import os
-from data_processor import Multi_Task_Processor
+from data_processor import Multi_Task_Processor,AggressionProcessor,AttackProcessor,ToxicityProcessor
+import torch
+from torch.utils.data import TensorDataset
+
+
+processors = {"aggression": AggressionProcessor,"attack":AttackProcessor,"toxicity":ToxicityProcessor,"multi_task":Multi_Task_Processor}
+output_modes = {"aggression": "classification", "attack":"classification","toxicity":"classification","multi_task":"classification"}
 
 class InputFeatures(object):
 
@@ -27,7 +33,7 @@ class InputFeatures(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 logger = logging.getLogger(__name__)
-def glue_convert_examples_to_features(examples, tokenizer,
+def convert_examples_to_features(examples, tokenizer,
                                       max_length=512,
                                       task=None,
                                       label_list=None,
@@ -113,6 +119,50 @@ def glue_convert_examples_to_features(examples, tokenizer,
 
 
     return features
+
+def load_and_cache_examples(args, task, tokenizer, evaluate=False):
+    if args.local_rank not in [-1, 0] and not evaluate:
+        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
+
+    processor = processors[task]()
+    output_mode = output_modes[task]
+    # Load data features from cache or dataset file
+    cached_features_file = os.path.join(args.data_dir, 'cached_{}_{}_{}_{}'.format('dev' if evaluate else 'train',
+        list(filter(None, args.model_name_or_path.split('/'))).pop(), str(args.max_seq_length), str(task)))
+    if os.path.exists(cached_features_file) and not args.overwrite_cache:
+        logger.info("Loading features from cached file %s", cached_features_file)
+        features = torch.load(cached_features_file)
+    else:
+        logger.info("Creating features from dataset file at %s", args.data_dir)
+        label_list = processor.get_labels()
+
+        examples = processor.get_dev_examples(args.data_dir) if evaluate else processor.get_train_examples(
+            args.data_dir)
+        features = convert_examples_to_features(examples, tokenizer, label_list=label_list,
+                                                max_length=args.max_seq_length, output_mode=output_mode,
+                                                pad_on_left=bool(args.model_type in ['xlnet']),
+                                                # pad on the left for xlnet
+                                                pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+                                                pad_token_segment_id=4 if args.model_type in ['xlnet'] else 0, )
+        if args.local_rank in [-1, 0]:
+            logger.info("Saving features into cached file %s", cached_features_file)
+            torch.save(features, cached_features_file)
+
+    if args.local_rank == 0 and not evaluate:
+        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
+
+    # Convert to Tensors and build dataset
+    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+    all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
+    all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
+
+    aggression_all_label=torch.tensor([f.aggression_label for f in features], dtype=torch.long)
+    attack_all_label_label=torch.tensor([f.attack_label for f in features], dtype=torch.long)
+    toxicity_all_label=torch.tensor([f.toxicity_label for f in features], dtype=torch.long)
+
+
+    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, aggression_all_label,attack_all_label_label,toxicity_all_label)
+    return dataset
 
 
 

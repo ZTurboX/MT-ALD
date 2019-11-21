@@ -27,7 +27,7 @@ from transformers import AdamW, WarmupLinearSchedule
 from compute_score import compute_metrics
 
 
-from utils import glue_convert_examples_to_features as convert_examples_to_features
+from utils import load_and_cache_examples
 from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor,Multi_Task_Processor
 
 from multi_task_model import Multi_Model
@@ -124,7 +124,6 @@ def train(args, train_dataset, model, tokenizer):
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
 
             aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
-            #loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -150,10 +149,6 @@ def train(args, train_dataset, model, tokenizer):
                     # Log metrics
                     if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
                         results = evaluate(args, model, tokenizer)
-                        '''
-                                                for key, value in results.items():
-                            tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
-                        '''
 
                     tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
                     tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
@@ -302,50 +297,6 @@ def evaluate(args, model, tokenizer, prefix=""):
     return aggression_results,attack_results,toxicity_results
 
 
-def load_and_cache_examples(args, task, tokenizer, evaluate=False):
-    if args.local_rank not in [-1, 0] and not evaluate:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
-
-    processor = processors[task]()
-    output_mode = output_modes[task]
-    # Load data features from cache or dataset file
-    cached_features_file = os.path.join(args.data_dir, 'cached_{}_{}_{}_{}'.format('dev' if evaluate else 'train',
-        list(filter(None, args.model_name_or_path.split('/'))).pop(), str(args.max_seq_length), str(task)))
-    if os.path.exists(cached_features_file) and not args.overwrite_cache:
-        logger.info("Loading features from cached file %s", cached_features_file)
-        features = torch.load(cached_features_file)
-    else:
-        logger.info("Creating features from dataset file at %s", args.data_dir)
-        label_list = processor.get_labels()
-
-        examples = processor.get_dev_examples(args.data_dir) if evaluate else processor.get_train_examples(
-            args.data_dir)
-        features = convert_examples_to_features(examples, tokenizer, label_list=label_list,
-                                                max_length=args.max_seq_length, output_mode=output_mode,
-                                                pad_on_left=bool(args.model_type in ['xlnet']),
-                                                # pad on the left for xlnet
-                                                pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                                                pad_token_segment_id=4 if args.model_type in ['xlnet'] else 0, )
-        if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save(features, cached_features_file)
-
-    if args.local_rank == 0 and not evaluate:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
-
-    # Convert to Tensors and build dataset
-    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-    all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
-    all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
-
-    aggression_all_label=torch.tensor([f.aggression_label for f in features], dtype=torch.long)
-    attack_all_label_label=torch.tensor([f.attack_label for f in features], dtype=torch.long)
-    toxicity_all_label=torch.tensor([f.toxicity_label for f in features], dtype=torch.long)
-
-
-    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, aggression_all_label,attack_all_label_label,toxicity_all_label)
-    return dataset
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -380,8 +331,8 @@ def main():
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=8, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation.")
+    parser.add_argument("--per_gpu_train_batch_size", default=2, type=int, help="Batch size per GPU/CPU for training.")
+    parser.add_argument("--per_gpu_eval_batch_size", default=2, type=int, help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
@@ -557,9 +508,7 @@ def main():
             prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
 
             model = model_class.from_pretrained(checkpoint)
-            #model = torch.load(checkpoint)
-            #checkpoint=os.path.join(checkpoint, 'pytorch_model.bin')
-            #model.load_pretrained(checkpoint)
+
             model.to(args.device)
             aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer, prefix=prefix)
             aggression_result = dict((k + '_{}'.format(global_step), v) for k, v in aggression_results.items())
