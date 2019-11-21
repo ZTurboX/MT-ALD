@@ -68,14 +68,6 @@ class Multi_Model(nn.Module):
 
         return aggression_logits,attack_logits,toxicity_logits,loss
 
-    def to_json_string(self):
-        """Serializes this instance to a JSON string."""
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
-
-    def to_json_file(self, json_file_path):
-        """ Save this instance to a json file."""
-        with open(json_file_path, "w", encoding='utf-8') as writer:
-            writer.write(self.to_json_string())
 
     def save_pretrained(self, save_directory):
         """ Save a model and its configuration file to a directory, so that it
@@ -86,9 +78,6 @@ class Multi_Model(nn.Module):
         # Only save the model it-self if we are using distributed training
         model_to_save = self.module if hasattr(self, 'module') else self
 
-        #output_config_file = os.path.join(save_directory, CONFIG_NAME)
-        #self.to_json_file(output_config_file)
-
         model_to_save.config.save_pretrained(save_directory)
 
         # If we save using the predefined names, we can load using `from_pretrained`
@@ -96,8 +85,7 @@ class Multi_Model(nn.Module):
         torch.save(model_to_save.state_dict(), output_model_file)
         logger.info("Model weights saved in {}".format(output_model_file))
 
-    def load_pretrained(self,path):
-        self.load_state_dict(torch.load(path, map_location=lambda storage, loc: storage))
+
 
 if __name__=='__main__':
     '''

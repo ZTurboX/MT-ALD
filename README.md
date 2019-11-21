@@ -8,10 +8,11 @@ single task score
 
 
 
-multi task score-model 8600
+multi task score                                                                                                                  model 8600
 
 |            | Accuracy | Precision | Recall |  F1   |
 | :--------: | :------: | :-------: | :----: | :---: |
 | aggression |  0.928   |   0.822   | 0.760  | 0.790 |
 |   attack   |  0.936   |   0.806   | 0.803  | 0.805 |
 |  toxicity  |  0.939   |   0.848   | 0.793  | 0.820 |
+
