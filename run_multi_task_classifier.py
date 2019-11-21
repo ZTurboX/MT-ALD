@@ -476,7 +476,7 @@ def main():
     # Set seed
     set_seed(args)
 
-    # Prepare GLUE task
+
     args.task_name = args.task_name.lower()
     if args.task_name not in processors:
         raise ValueError("Task not found: %s" % (args.task_name))

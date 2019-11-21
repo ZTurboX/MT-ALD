@@ -44,7 +44,7 @@ class DataProcessor(object):
             return lines
 
 class AggressionProcessor(DataProcessor):
-    """Processor for the CoLA data set (GLUE version)."""
+
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -91,7 +91,7 @@ class AggressionProcessor(DataProcessor):
 
 
 class AttackProcessor(DataProcessor):
-    """Processor for the CoLA data set (GLUE version)."""
+
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -133,7 +133,7 @@ class AttackProcessor(DataProcessor):
         return train_examples,dev_examples
 
 class ToxicityProcessor(DataProcessor):
-    """Processor for the CoLA data set (GLUE version)."""
+
 
     def get_train_examples(self, data_dir):
         """See base class."""
@@ -176,7 +176,7 @@ class ToxicityProcessor(DataProcessor):
 
 
 class Multi_Task_Processor(DataProcessor):
-    """Processor for the CoLA data set (GLUE version)."""
+
 
     def get_train_examples(self, data_dir):
         """See base class."""
