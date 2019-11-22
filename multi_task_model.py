@@ -34,15 +34,13 @@ class Multi_Model(nn.Module):
         task_char_embedding = [F.relu(conv(task_char_embedding)).squeeze(3) for conv in self.convs1]  # [(N,Co,W), ...]*len(Ks)
         task_char_embedding = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in task_char_embedding]  # [(N,Co), ...]*len(Ks)
         task_char_embedding = torch.cat(task_char_embedding, 1)
-        task_char_embedding=self.dropout(task_char_embedding)
+
         task_char_embedding=task_char_embedding.unsqueeze(0)
-
-
         task_word_embedding=self.embedding(task_word_tensor.unsqueeze(0))
         emnedding_list=[task_word_embedding,task_char_embedding]
 
         word_vecs=torch.cat(emnedding_list,2)
-        word_vecs=self.dropout(word_vecs)
+
         return word_vecs
 
 

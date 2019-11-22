@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5b00ba78-b6a4-484a-8b62-1d62fd8639b8" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
       <change beforePath="$PROJECT_DIR$/multi_task_model.py" afterPath="$PROJECT_DIR$/multi_task_model.py" />
-      <change beforePath="$PROJECT_DIR$/run_multi_task_classifier.py" afterPath="$PROJECT_DIR$/run_multi_task_classifier.py" />
-      <change beforePath="$PROJECT_DIR$/run_single_task_classifier.py" afterPath="$PROJECT_DIR$/run_single_task_classifier.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -29,11 +25,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="multi_task_model.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="multi_task_model.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/multi_task_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="504">
-              <caret line="111" column="41" lean-forward="true" selection-start-line="111" selection-start-column="41" selection-end-line="111" selection-end-column="41" />
+            <state relative-caret-position="240">
+              <caret line="100" column="67" lean-forward="false" selection-start-line="100" selection-start-column="67" selection-end-line="100" selection-end-column="67" />
               <folding>
                 <element signature="e#0#92#0" expanded="true" />
               </folding>
@@ -41,11 +37,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="run_multi_task_classifier.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="run_multi_task_classifier.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/run_multi_task_classifier.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="268">
-              <caret line="386" column="62" lean-forward="false" selection-start-line="386" selection-start-column="62" selection-end-line="386" selection-end-column="62" />
+            <state relative-caret-position="-8396">
+              <caret line="178" column="15" lean-forward="true" selection-start-line="178" selection-start-column="15" selection-end-line="178" selection-end-column="15" />
               <folding>
                 <element signature="e#1#65#0" expanded="true" />
               </folding>
@@ -102,8 +98,8 @@
         <option value="$PROJECT_DIR$/help.py" />
         <option value="$PROJECT_DIR$/compute_score.py" />
         <option value="$PROJECT_DIR$/run_single_task_classifier.py" />
-        <option value="$PROJECT_DIR$/multi_task_model.py" />
         <option value="$PROJECT_DIR$/run_multi_task_classifier.py" />
+        <option value="$PROJECT_DIR$/multi_task_model.py" />
       </list>
     </option>
   </component>
@@ -717,22 +713,22 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/multi_task_model.py">
+    <entry file="file://$PROJECT_DIR$/run_multi_task_classifier.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="504">
-          <caret line="111" column="41" lean-forward="true" selection-start-line="111" selection-start-column="41" selection-end-line="111" selection-end-column="41" />
+        <state relative-caret-position="-8396">
+          <caret line="178" column="15" lean-forward="true" selection-start-line="178" selection-start-column="15" selection-end-line="178" selection-end-column="15" />
           <folding>
-            <element signature="e#0#92#0" expanded="true" />
+            <element signature="e#1#65#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/run_multi_task_classifier.py">
+    <entry file="file://$PROJECT_DIR$/multi_task_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="268">
-          <caret line="386" column="62" lean-forward="false" selection-start-line="386" selection-start-column="62" selection-end-line="386" selection-end-column="62" />
+        <state relative-caret-position="240">
+          <caret line="100" column="67" lean-forward="false" selection-start-line="100" selection-start-column="67" selection-end-line="100" selection-end-column="67" />
           <folding>
-            <element signature="e#1#65#0" expanded="true" />
+            <element signature="e#0#92#0" expanded="true" />
           </folding>
         </state>
       </provider>
