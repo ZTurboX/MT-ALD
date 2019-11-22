@@ -27,7 +27,7 @@ from transformers import AdamW, WarmupLinearSchedule
 from compute_score import compute_metrics
 
 
-from utils import load_and_cache_examples
+from utils import load_and_cache_examples,get_char_vocab,char2ids
 from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor,Multi_Task_Processor
 
 from multi_task_model import Multi_Model
@@ -61,9 +61,19 @@ def train(args, train_dataset, model, tokenizer):
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
-    aggression_embed = torch.tensor(tokenizer.encode("aggression"),dtype=torch.long).to(args.device)
-    attack_embed = torch.tensor(tokenizer.encode("attack"),dtype=torch.long).to(args.device)
-    toxicity_embed = torch.tensor(tokenizer.encode("toxicity"),dtype=torch.long).to(args.device)
+    aggression_tensor = torch.tensor(tokenizer.encode("aggression"),dtype=torch.long).to(args.device)
+    attack_tensor = torch.tensor(tokenizer.encode("attack"),dtype=torch.long).to(args.device)
+    toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"),dtype=torch.long).to(args.device)
+
+    char_vocab=get_char_vocab()
+    aggression_char_ids=char2ids("aggression",char_vocab)
+    attack_char_ids=char2ids("attack",char_vocab)
+    toxicity_char_ids=char2ids("toxicity",char_vocab)
+
+    aggression_char_tenor=torch.tensor(aggression_char_ids,dtype=torch.long).to(args.device)
+    attack_char_tenor = torch.tensor(attack_char_ids, dtype=torch.long).to(args.device)
+    toxicity_char_tenor = torch.tensor(toxicity_char_ids, dtype=torch.long).to(args.device)
+
 
     if args.max_steps > 0:
         t_total = args.max_steps
@@ -108,6 +118,7 @@ def train(args, train_dataset, model, tokenizer):
 
     global_step = 0
     tr_loss, logging_loss = 0.0, 0.0
+    best_f1=0.0
     model.zero_grad()
     train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0])
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
@@ -118,7 +129,8 @@ def train(args, train_dataset, model, tokenizer):
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {'input_ids': batch[0], 'attention_mask': batch[1],
                       'aggression_labels': batch[3],'attack_labels': batch[4],'toxicity_labels': batch[5],
-                      'aggression_embed':aggression_embed,'attack_embed':attack_embed,'toxicity_embed':toxicity_embed}
+                      'aggression_tensor':aggression_tensor,'attack_tensor':attack_tensor,'toxicity_tensor':toxicity_tensor,
+                      'aggression_char_tensor':aggression_char_tenor,'attack_char_tensor':attack_char_tenor,'toxicity_char_tensor':toxicity_char_tenor}
             if args.model_type != 'distilbert':
                 inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
@@ -147,23 +159,52 @@ def train(args, train_dataset, model, tokenizer):
 
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
                     # Log metrics
-                    if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
-                        results = evaluate(args, model, tokenizer)
+
+                    aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer)
+
+                    aggression_f1=aggression_results['score']['f1']
+                    attack_f1=attack_results['score']['f1']
+                    toxicity_f1=toxicity_results['score']['f1']
 
                     tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
                     tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
                     logging_loss = tr_loss
 
-                if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
-                    # Save model checkpoint
-                    output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
-                    model_to_save = model.module if hasattr(model,
-                                                            'module') else model  # Take care of distributed/parallel training
-                    model_to_save.save_pretrained(output_dir)
-                    torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                    logger.info("Saving model checkpoint to %s", output_dir)
+                    if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
+                        best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
+                        # Save model checkpoint
+                        output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                        if not os.path.exists(output_dir):
+                            os.makedirs(output_dir)
+                        model_to_save = model.module if hasattr(model,
+                                                                'module') else model  # Take care of distributed/parallel training
+                        model_to_save.save_pretrained(output_dir)
+                        torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                        logger.info("Saving model checkpoint to %s", output_dir)
+
+                        aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+                        attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                        toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                        with open(aggression_output_eval_file, "a") as writer:
+                            logger.info("***** best aggression results  *****")
+                            for key in sorted(aggression_results.keys()):
+                                logger.info("  %s = %s", key, str(aggression_results[key]))
+                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(aggression_results[key])))
+
+                        with open(attack_output_eval_file, "a") as writer:
+                            logger.info("***** best attack results  *****")
+                            for key in sorted(attack_results.keys()):
+                                logger.info("  %s = %s", key, str(attack_results[key]))
+                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(attack_results[key])))
+
+                        with open(toxicity_output_eval_file, "a") as writer:
+                            logger.info("***** best toxicity results  *****")
+                            for key in sorted(toxicity_results.keys()):
+                                logger.info("  %s = %s", key, str(toxicity_results[key]))
+                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
+
+
+
 
             if args.tpu:
                 args.xla_model.optimizer_step(optimizer, barrier=True)
@@ -202,9 +243,18 @@ def evaluate(args, model, tokenizer, prefix=""):
         eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-        aggression_embed = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
-        attack_embed = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
-        toxicity_embed = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+        aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
+        attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
+        toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+
+        char_vocab = get_char_vocab()
+        aggression_char_ids = char2ids("aggression", char_vocab)
+        attack_char_ids = char2ids("attack", char_vocab)
+        toxicity_char_ids = char2ids("toxicity", char_vocab)
+
+        aggression_char_tenor = torch.tensor(aggression_char_ids, dtype=torch.long).to(args.device)
+        attack_char_tenor = torch.tensor(attack_char_ids, dtype=torch.long).to(args.device)
+        toxicity_char_tenor = torch.tensor(toxicity_char_ids, dtype=torch.long).to(args.device)
 
 
         # Eval!
@@ -225,8 +275,10 @@ def evaluate(args, model, tokenizer, prefix=""):
 
             with torch.no_grad():
                 inputs = {'input_ids': batch[0], 'attention_mask': batch[1], 'aggression_labels': batch[3],
-                          'attack_labels': batch[4], 'toxicity_labels': batch[5], 'aggression_embed': aggression_embed,
-                          'attack_embed': attack_embed, 'toxicity_embed': toxicity_embed}
+                          'attack_labels': batch[4], 'toxicity_labels': batch[5],
+                          'aggression_tensor': aggression_tensor, 'attack_tensor': attack_tensor,
+                          'toxicity_tensor': toxicity_tensor, 'aggression_char_tensor': aggression_char_tenor,
+                          'attack_char_tensor': attack_char_tenor, 'toxicity_char_tensor': toxicity_char_tenor}
                 if args.model_type != 'distilbert':
                     inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                                'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
@@ -272,27 +324,18 @@ def evaluate(args, model, tokenizer, prefix=""):
         toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
         toxicity_results.update(toxicity_result)
 
+        logger.info("***** Eval aggression results {} *****".format(prefix))
+        for key in sorted(aggression_result.keys()):
+            logger.info("  %s = %s", key, str(aggression_result[key]))
 
-        aggression_output_eval_file = os.path.join(eval_output_dir, prefix, "aggression_eval_results.txt")
-        attack_output_eval_file = os.path.join(eval_output_dir, prefix, "attack_eval_results.txt")
-        toxicity_output_eval_file = os.path.join(eval_output_dir, prefix, "toxicity_eval_results.txt")
-        with open(aggression_output_eval_file, "w") as writer:
-            logger.info("***** Eval aggression results {} *****".format(prefix))
-            for key in sorted(aggression_result.keys()):
-                logger.info("  %s = %s", key, str(aggression_result[key]))
-                writer.write("%s = %s\n" % (key, str(aggression_result[key])))
+        logger.info("***** Eval attack results {} *****".format(prefix))
+        for key in sorted(attack_result.keys()):
+            logger.info("  %s = %s", key, str(attack_result[key]))
 
-        with open(attack_output_eval_file, "w") as writer:
-            logger.info("***** Eval attack results {} *****".format(prefix))
-            for key in sorted(attack_result.keys()):
-                logger.info("  %s = %s", key, str(attack_result[key]))
-                writer.write("%s = %s\n" % (key, str(attack_result[key])))
+        logger.info("***** Eval toxicity results {} *****".format(prefix))
+        for key in sorted(toxicity_result.keys()):
+            logger.info("  %s = %s", key, str(toxicity_result[key]))
 
-        with open(toxicity_output_eval_file, "w") as writer:
-            logger.info("***** Eval toxicity results {} *****".format(prefix))
-            for key in sorted(toxicity_result.keys()):
-                logger.info("  %s = %s", key, str(toxicity_result[key]))
-                writer.write("%s = %s\n" % (key, str(toxicity_result[key])))
 
     return aggression_results,attack_results,toxicity_results
 
@@ -325,14 +368,15 @@ def main():
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
+
     parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
     parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
     parser.add_argument("--evaluate_during_training", default=True,action='store_true',
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=2, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=2, type=int, help="Batch size per GPU/CPU for evaluation.")
+    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Batch size per GPU/CPU for training.")
+    parser.add_argument("--per_gpu_eval_batch_size", default=16, type=int, help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
@@ -345,8 +389,8 @@ def main():
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
     parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
 
-    parser.add_argument('--logging_steps', type=int, default=50, help="Log every X updates steps.")
-    parser.add_argument('--save_steps', type=int, default=50, help="Save checkpoint every X updates steps.")
+    parser.add_argument('--logging_steps', type=int, default=200, help="Log every X updates steps.")
+    parser.add_argument('--save_steps', type=int, default=200, help="Save checkpoint every X updates steps.")
     parser.add_argument("--eval_all_checkpoints", action='store_true',
                         help="Evaluate all checkpoints starting with the same prefix as model_name ending and ending with step number")
     parser.add_argument("--no_cuda", action='store_true', help="Avoid using CUDA when available")
@@ -518,7 +562,7 @@ def main():
             attack_results.update(attack_result)
             toxicity_results.update(toxicity_result)
 
-    return aggression_results, attack_results, toxicity_results
+
 
 
 if __name__ == "__main__":

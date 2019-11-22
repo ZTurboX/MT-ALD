@@ -176,3 +176,33 @@ glue_output_modes = {
 
 }
 
+def get_char_vocab():
+    vocab=['<p>']
+    labels=["aggression","attack","toxicity"]
+    for word in labels:
+        for char in word:
+            if char not in vocab:
+                vocab.append(char)
+    char_vocab={}
+    for ids,item in enumerate(vocab):
+        char_vocab[item]=ids
+    return char_vocab
+
+def char2ids(task_label,char_vocab):
+    labels = ["aggression", "attack", "toxicity"]
+    max_len=[len(label) for label in labels]
+    max_len=max(max_len)
+    task_label_char_ids=[char_vocab[char] for char in task_label]+[char_vocab['<p>']]*(max_len-len(task_label))
+    return task_label_char_ids
+
+if __name__=="__main__":
+    '''
+    char_vocab=get_char_vocab()
+    print(char_vocab)
+    task_label_char_ids=char2ids("attack",char_vocab)
+    print(task_label_char_ids)
+    '''
+
+
+
+
