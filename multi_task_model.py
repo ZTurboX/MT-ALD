@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
+from transformers import BertPreTrainedModel,BertModel
 import os
 import logging
 import json
@@ -12,12 +13,11 @@ WEIGHTS_NAME = "pytorch_model.bin"
 CONFIG_NAME = "config.json"
 
 class Multi_Model(nn.Module):
-    def __init__(self,bert_config,bert_model):
+    def __init__(self,args,bert_config):
         super(Multi_Model,self).__init__()
 
         self.config = bert_config
-        self.bert=bert_model
-
+        self.bert=BertModel.from_pretrained(args.model_name_or_path, from_tf=bool('.ckpt' in args.model_name_or_path),config=self.config)
         self.embedding = nn.Embedding(self.config.vocab_size, self.config.hidden_size//2)
         self.char_embedding=nn.Embedding(14,self.config.hidden_size//2)
         self.convs1=nn.ModuleList([nn.Conv2d(1, 192, (K, self.config.hidden_size//2), padding=(K-1, 0)) for K in [2,3]])
@@ -25,23 +25,6 @@ class Multi_Model(nn.Module):
 
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
         self.classifier = nn.Linear(self.config.hidden_size*2, 2)
-
-
-    def task_specific_attention(self,task_embedding,encoder_outputs):
-        attn_weight = torch.cat((task_embedding.permute(1, 0, 2).expand_as(encoder_outputs), encoder_outputs),dim=2)  # torch.Size([100, 100, 2000])
-        attn_weight = F.softmax(F.tanh(self.attn(attn_weight)), dim=1)
-        attn_applied = torch.bmm(attn_weight.permute(0, 2, 1), encoder_outputs).squeeze(1)
-        return attn_applied
-
-    def task_classifier(self,task_specific_atten,output,gold_labels):
-        logits=torch.cat((task_specific_atten,output),dim=1)
-        logits=self.classifier(logits)
-
-        loss_fct = CrossEntropyLoss()
-        logits=logits.view(-1, self.config.num_labels)
-        loss = loss_fct(logits.view(-1, self.config.num_labels), gold_labels.view(-1))
-
-        return logits,loss
 
     def word_char_embedding(self,task_word_tensor,task_char_tensor):
         task_char_tensor=task_char_tensor.unsqueeze(0)
@@ -51,6 +34,7 @@ class Multi_Model(nn.Module):
         task_char_embedding = [F.relu(conv(task_char_embedding)).squeeze(3) for conv in self.convs1]  # [(N,Co,W), ...]*len(Ks)
         task_char_embedding = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in task_char_embedding]  # [(N,Co), ...]*len(Ks)
         task_char_embedding = torch.cat(task_char_embedding, 1)
+        task_char_embedding=self.dropout(task_char_embedding)
         task_char_embedding=task_char_embedding.unsqueeze(0)
 
 
@@ -58,8 +42,25 @@ class Multi_Model(nn.Module):
         emnedding_list=[task_word_embedding,task_char_embedding]
 
         word_vecs=torch.cat(emnedding_list,2)
+        word_vecs=self.dropout(word_vecs)
         return word_vecs
 
+
+    def task_specific_attention(self,task_embedding,encoder_outputs):
+        attn_weight = torch.cat((task_embedding.permute(1, 0, 2).expand_as(encoder_outputs), encoder_outputs),dim=2)  # torch.Size([100, 100, 2000])
+        attn_weight = F.softmax(F.tanh(self.attn(attn_weight)), dim=1)
+        attn_applied = torch.bmm(attn_weight.permute(0, 2, 1), encoder_outputs).squeeze(1)
+        return attn_applied
+
+    def task_classifier(self,task_specific_atten,output,gold_labels):
+        logits=torch.cat((task_specific_atten,output),dim=1)#torch.Size([16, 1536])
+        logits=self.classifier(logits)#torch.Size([16, 2])
+
+        loss_fct = CrossEntropyLoss()
+        logits=logits.view(-1, self.config.num_labels)
+        loss = loss_fct(logits.view(-1, self.config.num_labels), gold_labels.view(-1))
+
+        return logits,loss
 
 
 
@@ -107,6 +108,10 @@ class Multi_Model(nn.Module):
         output_model_file = os.path.join(save_directory, WEIGHTS_NAME)
         torch.save(model_to_save.state_dict(), output_model_file)
         logger.info("Model weights saved in {}".format(output_model_file))
+
+    def load_pretrained(self,checkpoint):
+        model_to_save = self.module if hasattr(self, 'module') else self
+        model_to_save.load_state_dict(torch.load(checkpoint))
 
 
 

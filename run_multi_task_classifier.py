@@ -61,9 +61,9 @@ def train(args, train_dataset, model, tokenizer):
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
-    aggression_tensor = torch.tensor(tokenizer.encode("aggression"),dtype=torch.long).to(args.device)
-    attack_tensor = torch.tensor(tokenizer.encode("attack"),dtype=torch.long).to(args.device)
-    toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"),dtype=torch.long).to(args.device)
+    aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
+    attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
+    toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
 
     char_vocab=get_char_vocab()
     aggression_char_ids=char2ids("aggression",char_vocab)
@@ -119,6 +119,9 @@ def train(args, train_dataset, model, tokenizer):
     global_step = 0
     tr_loss, logging_loss = 0.0, 0.0
     best_f1=0.0
+    best_aggression_score={}
+    best_attack_score={}
+    best_toxicity_score={}
     model.zero_grad()
     train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0])
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
@@ -151,7 +154,7 @@ def train(args, train_dataset, model, tokenizer):
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
             tr_loss += loss.item()
-            if (step + 1) % args.gradient_accumulation_steps == 0 and not args.tpu:
+            if (step + 1) % args.gradient_accumulation_steps == 0 :
                 optimizer.step()
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
@@ -172,6 +175,9 @@ def train(args, train_dataset, model, tokenizer):
 
                     if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
                         best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
+                        best_aggression_score.update(aggression_results)
+                        best_attack_score.update(attack_results)
+                        best_toxicity_score.update(toxicity_results)
                         # Save model checkpoint
                         output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
                         if not os.path.exists(output_dir):
@@ -203,13 +209,16 @@ def train(args, train_dataset, model, tokenizer):
                                 logger.info("  %s = %s", key, str(toxicity_results[key]))
                                 writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
 
+                    logger.info("***** best  results checkpoint-{} *****".format(global_step))
+                    for key in sorted(best_aggression_score.keys()):
+                        logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
 
+                    for key in sorted(best_attack_score.keys()):
+                        logger.info("attack-%s = %s", key, str(best_attack_score[key]))
 
+                    for key in sorted(best_toxicity_score.keys()):
+                        logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
-            if args.tpu:
-                args.xla_model.optimizer_step(optimizer, barrier=True)
-                model.zero_grad()
-                global_step += 1
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -308,12 +317,11 @@ def evaluate(args, model, tokenizer, prefix=""):
                 toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
-        if args.output_mode == "classification":
-            aggression_preds = np.argmax(aggression_preds, axis=1)
-            attack_preds = np.argmax(attack_preds, axis=1)
-            toxicity_preds = np.argmax(toxicity_preds, axis=1)
-        elif args.output_mode == "regression":
-            preds = np.squeeze(preds)
+
+        aggression_preds = np.argmax(aggression_preds, axis=1)
+        attack_preds = np.argmax(attack_preds, axis=1)
+        toxicity_preds = np.argmax(toxicity_preds, axis=1)
+
 
         aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
         aggression_results.update(aggression_result)
@@ -375,8 +383,8 @@ def main():
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=16, type=int, help="Batch size per GPU/CPU for evaluation.")
+    parser.add_argument("--per_gpu_train_batch_size", default=8, type=int, help="Batch size per GPU/CPU for training.")
+    parser.add_argument("--per_gpu_eval_batch_size", default=8, type=int, help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
@@ -400,14 +408,6 @@ def main():
                         help="Overwrite the cached training and evaluation sets")
     parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
 
-    parser.add_argument('--tpu', action='store_true',
-                        help="Whether to run on the TPU defined in the environment variables")
-    parser.add_argument('--tpu_ip_address', type=str, default='',
-                        help="TPU IP address if none are set in the environment variables")
-    parser.add_argument('--tpu_name', type=str, default='',
-                        help="TPU name if none are set in the environment variables")
-    parser.add_argument('--xrt_tpu_config', type=str, default='',
-                        help="XRT TPU config if none are set in the environment variables")
 
     parser.add_argument('--fp16', action='store_true',
                         help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit")
@@ -415,8 +415,7 @@ def main():
                         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
                              "See details at https://nvidia.github.io/apex/amp.html")
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
-    parser.add_argument('--server_ip', type=str, default='', help="For distant debugging.")
-    parser.add_argument('--server_port', type=str, default='', help="For distant debugging.")
+
     args = parser.parse_args()
 
     if os.path.exists(args.output_dir) and os.listdir(
@@ -425,15 +424,9 @@ def main():
             "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(
                 args.output_dir))
 
-    # Setup distant debugging if needed
-    if args.server_ip and args.server_port:
-        # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
-        import ptvsd
-        print("Waiting for debugger attach")
-        ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
-        ptvsd.wait_for_attach()
 
     # Setup CUDA, GPU & distributed training
+
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         #args.n_gpu = torch.cuda.device_count()
@@ -445,22 +438,7 @@ def main():
         args.n_gpu = 1
     args.device = device
 
-    if args.tpu:
-        if args.tpu_ip_address:
-            os.environ["TPU_IP_ADDRESS"] = args.tpu_ip_address
-        if args.tpu_name:
-            os.environ["TPU_NAME"] = args.tpu_name
-        if args.xrt_tpu_config:
-            os.environ["XRT_TPU_CONFIG"] = args.xrt_tpu_config
 
-        assert "TPU_IP_ADDRESS" in os.environ
-        assert "TPU_NAME" in os.environ
-        assert "XRT_TPU_CONFIG" in os.environ
-
-        import torch_xla
-        import torch_xla.core.xla_model as xm
-        args.device = xm.xla_device()
-        args.xla_model = xm
 
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
@@ -493,12 +471,10 @@ def main():
     bert_model = model_class.from_pretrained(args.model_name_or_path, from_tf=bool('.ckpt' in args.model_name_or_path),
                                         config=bert_config)
 
-
-
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.bert_vocab,
                                                 do_lower_case=args.do_lower_case)
 
-    model=Multi_Model(bert_config,bert_model)
+    model=Multi_Model(args,bert_config)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -513,6 +489,8 @@ def main():
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
+
+    '''
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
     if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0) and not args.tpu:
         # Create output directory if needed
@@ -536,11 +514,11 @@ def main():
         #model.load_pretrained(model_dir)
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
         model.to(args.device)
-
+    '''
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
-        tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
+        tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name, do_lower_case=args.do_lower_case)
         checkpoints = [args.output_dir]
         if args.eval_all_checkpoints:
             checkpoints = list(
@@ -550,10 +528,10 @@ def main():
         for checkpoint in checkpoints:
             global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
             prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
-
-            model = model_class.from_pretrained(checkpoint)
-
-            model.to(args.device)
+            model = Multi_Model(args, bert_config)
+            model=torch.load('./check_points/checkpoint-200/pytorch_model.bin')
+            #model=model.load_pretrained('./check_points/checkpoint-200/pytorch_model.bin')
+            #model.to(args.device)
             aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer, prefix=prefix)
             aggression_result = dict((k + '_{}'.format(global_step), v) for k, v in aggression_results.items())
             attack_result = dict((k + '_{}'.format(global_step), v) for k, v in attack_results.items())
@@ -561,6 +539,21 @@ def main():
             aggression_results.update(aggression_result)
             attack_results.update(attack_result)
             toxicity_results.update(toxicity_result)
+
+            logger.info("***** Eval aggression results  *****")
+            for key in sorted(aggression_results.keys()):
+                logger.info("  %s = %s", key, str(aggression_results[key]))
+
+            logger.info("***** Eval attack results  *****")
+            for key in sorted(attack_results.keys()):
+                logger.info("  %s = %s", key, str(attack_results[key]))
+
+            logger.info("***** Eval toxicity results  *****")
+            for key in sorted(toxicity_results.keys()):
+                logger.info("  %s = %s", key, str(toxicity_results[key]))
+
+
+
 
 
 

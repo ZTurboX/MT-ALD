@@ -32,6 +32,8 @@ from data_processor import AggressionProcessor,AttackProcessor,ToxicityProcessor
 
 
 
+
+
 logger = logging.getLogger(__name__)
 
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in
@@ -163,10 +165,6 @@ def train(args, train_dataset, model, tokenizer):
                     torch.save(args, os.path.join(output_dir, 'training_args.bin'))
                     logger.info("Saving model checkpoint to %s", output_dir)
 
-            if args.tpu:
-                args.xla_model.optimizer_step(optimizer, barrier=True)
-                model.zero_grad()
-                global_step += 1
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -347,14 +345,6 @@ def main():
                         help="Overwrite the cached training and evaluation sets")
     parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
 
-    parser.add_argument('--tpu', action='store_true',
-                        help="Whether to run on the TPU defined in the environment variables")
-    parser.add_argument('--tpu_ip_address', type=str, default='',
-                        help="TPU IP address if none are set in the environment variables")
-    parser.add_argument('--tpu_name', type=str, default='',
-                        help="TPU name if none are set in the environment variables")
-    parser.add_argument('--xrt_tpu_config', type=str, default='',
-                        help="XRT TPU config if none are set in the environment variables")
 
     parser.add_argument('--fp16', action='store_true',
                         help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit")
@@ -362,8 +352,7 @@ def main():
                         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
                              "See details at https://nvidia.github.io/apex/amp.html")
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
-    parser.add_argument('--server_ip', type=str, default='', help="For distant debugging.")
-    parser.add_argument('--server_port', type=str, default='', help="For distant debugging.")
+
     args = parser.parse_args()
 
     if os.path.exists(args.output_dir) and os.listdir(
@@ -372,13 +361,7 @@ def main():
             "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(
                 args.output_dir))
 
-    # Setup distant debugging if needed
-    if args.server_ip and args.server_port:
-        # Distant debugging - see https://code.visualstudio.com/docs/python/debugging#_attach-to-a-local-script
-        import ptvsd
-        print("Waiting for debugger attach")
-        ptvsd.enable_attach(address=(args.server_ip, args.server_port), redirect_output=True)
-        ptvsd.wait_for_attach()
+
 
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:
@@ -391,22 +374,7 @@ def main():
         args.n_gpu = 1
     args.device = device
 
-    if args.tpu:
-        if args.tpu_ip_address:
-            os.environ["TPU_IP_ADDRESS"] = args.tpu_ip_address
-        if args.tpu_name:
-            os.environ["TPU_NAME"] = args.tpu_name
-        if args.xrt_tpu_config:
-            os.environ["XRT_TPU_CONFIG"] = args.xrt_tpu_config
 
-        assert "TPU_IP_ADDRESS" in os.environ
-        assert "TPU_NAME" in os.environ
-        assert "XRT_TPU_CONFIG" in os.environ
-
-        import torch_xla
-        import torch_xla.core.xla_model as xm
-        args.device = xm.xla_device()
-        args.xla_model = xm
 
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
