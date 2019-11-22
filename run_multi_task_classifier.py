@@ -514,7 +514,7 @@ def main():
         #model.load_pretrained(model_dir)
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
         model.to(args.device)
-    '''
+    
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
@@ -551,6 +551,7 @@ def main():
             logger.info("***** Eval toxicity results  *****")
             for key in sorted(toxicity_results.keys()):
                 logger.info("  %s = %s", key, str(toxicity_results[key]))
+    '''
 
 
 
