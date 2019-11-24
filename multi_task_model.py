@@ -85,7 +85,7 @@ class Multi_Model(nn.Module):
         attack_logits,attack_loss=self.task_classifier(attack_atten,pooled_output,attack_labels)
         toxicity_logits,toxicity_loss=self.task_classifier(toxicity_atten,pooled_output,toxicity_labels)
 
-        loss=aggression_loss+attack_loss+toxicity_loss
+        loss=0.3*aggression_loss+0.3*attack_loss+0.3*toxicity_loss
 
 
         return aggression_logits,attack_logits,toxicity_logits,loss

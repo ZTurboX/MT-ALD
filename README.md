@@ -20,8 +20,12 @@ multi task score                                                                
 
 改进
 
+1. label embedding 用CNN加入了字符信息
+2. attention改了激活函数
+3. 每个task的loss加上权重后再求和
+
 |            | Accuracy | Precision | Recall |  F1   |
 | :--------: | :------: | :-------: | :----: | :---: |
-| aggression |  0.929   |   0.828   | 0.761  | 0.793 |
-|   attack   |  0.936   |   0.810   | 0.801  | 0.806 |
-|  toxicity  |  0.942   |   0.860   | 0.800  | 0.829 |
+| aggression |  0.930   |   0.830   | 0.763  | 0.795 |
+|   attack   |  0.938   |   0.814   | 0.808  | 0.811 |
+|  toxicity  |  0.943   |   0.861   | 0.802  | 0.831 |
