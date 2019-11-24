@@ -178,13 +178,13 @@ def train(args, train_dataset, model, tokenizer):
                         best_aggression_score.update(aggression_results)
                         best_attack_score.update(attack_results)
                         best_toxicity_score.update(toxicity_results)
+
                         # Save model checkpoint
                         output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
                         if not os.path.exists(output_dir):
                             os.makedirs(output_dir)
-                        model_to_save = model.module if hasattr(model,
-                                                                'module') else model  # Take care of distributed/parallel training
-                        model_to_save.save_pretrained(output_dir)
+                        output_model_file = os.path.join(output_dir, "model.pt")
+                        torch.save(model.state_dict(), output_model_file)
                         torch.save(args, os.path.join(output_dir, 'training_args.bin'))
                         logger.info("Saving model checkpoint to %s", output_dir)
 
@@ -377,14 +377,15 @@ def main():
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
 
-    parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
+    parser.add_argument("--do_train", default=False,action='store_true', help="Whether to run training.")
     parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
+    parser.add_argument("--do_test", default=False, action='store_true', help="Whether to run test on the test set.")
     parser.add_argument("--evaluate_during_training", default=True,action='store_true',
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=16, type=int, help="Batch size per GPU/CPU for evaluation.")
+    parser.add_argument("--per_gpu_train_batch_size", default=2, type=int, help="Batch size per GPU/CPU for training.")
+    parser.add_argument("--per_gpu_eval_batch_size", default=2, type=int, help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
@@ -438,8 +439,6 @@ def main():
         args.n_gpu = 1
     args.device = device
 
-
-
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s', datefmt='%m/%d/%Y %H:%M:%S',
                         level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
@@ -490,68 +489,20 @@ def main():
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
 
-    '''
-    # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
-    if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0) and not args.tpu:
-        # Create output directory if needed
-        if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
-            os.makedirs(args.output_dir)
 
-        logger.info("Saving model checkpoint to %s", args.output_dir)
-        # Save a trained model, configuration and tokenizer using `save_pretrained()`.
-        # They can then be reloaded using `from_pretrained()`
-        model_to_save = model.module if hasattr(model,
-                                                'module') else model  # Take care of distributed/parallel training
-        model_to_save.save_pretrained(args.output_dir)
-        tokenizer.save_pretrained(args.output_dir)
-
-        # Good practice: save your training arguments together with the trained model
-        torch.save(args, os.path.join(args.output_dir, 'training_args.bin'))
-
-        # Load a trained model and vocabulary that you have fine-tuned
-        model = model_class.from_pretrained(args.output_dir)
-        #model_dir= os.path.join(args.output_dir, 'pytorch_model.bin')
-        #model.load_pretrained(model_dir)
-        tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
-        model.to(args.device)
-    
-    # Evaluation
+    # test
     results = {}
-    if args.do_eval and args.local_rank in [-1, 0]:
+    if args.do_test and args.local_rank in [-1, 0]:
         tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name, do_lower_case=args.do_lower_case)
-        checkpoints = [args.output_dir]
-        if args.eval_all_checkpoints:
-            checkpoints = list(
-                os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + '/**/' + WEIGHTS_NAME, recursive=True)))
-            logging.getLogger("transformers.modeling_utils").setLevel(logging.WARN)  # Reduce logging
-        logger.info("Evaluate the following checkpoints: %s", checkpoints)
-        for checkpoint in checkpoints:
-            global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
-            prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
-            model = Multi_Model(args, bert_config)
-            model=torch.load('./check_points/checkpoint-200/pytorch_model.bin')
-            #model=model.load_pretrained('./check_points/checkpoint-200/pytorch_model.bin')
-            #model.to(args.device)
-            aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer, prefix=prefix)
-            aggression_result = dict((k + '_{}'.format(global_step), v) for k, v in aggression_results.items())
-            attack_result = dict((k + '_{}'.format(global_step), v) for k, v in attack_results.items())
-            toxicity_result = dict((k + '_{}'.format(global_step), v) for k, v in toxicity_results.items())
-            aggression_results.update(aggression_result)
-            attack_results.update(attack_result)
-            toxicity_results.update(toxicity_result)
 
-            logger.info("***** Eval aggression results  *****")
-            for key in sorted(aggression_results.keys()):
-                logger.info("  %s = %s", key, str(aggression_results[key]))
+        logger.info("test the model")
+        checkpoint='./check_points/checkpoint-200/model.pt'
+        prefix = checkpoint.split('/')[-1] if checkpoint.find('checkpoint') != -1 else ""
+        model.load_state_dict(torch.load(checkpoint))
+        model.to(args.device)
+        aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer, prefix=prefix)
 
-            logger.info("***** Eval attack results  *****")
-            for key in sorted(attack_results.keys()):
-                logger.info("  %s = %s", key, str(attack_results[key]))
 
-            logger.info("***** Eval toxicity results  *****")
-            for key in sorted(toxicity_results.keys()):
-                logger.info("  %s = %s", key, str(toxicity_results[key]))
-    '''
 
 
 

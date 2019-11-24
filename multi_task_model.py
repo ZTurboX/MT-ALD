@@ -4,13 +4,10 @@ import torch
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 from transformers import BertPreTrainedModel,BertModel
-import os
 import logging
-import json
+
 logger = logging.getLogger(__name__)
 
-WEIGHTS_NAME = "pytorch_model.bin"
-CONFIG_NAME = "config.json"
 
 class Multi_Model(nn.Module):
     def __init__(self,args,bert_config):
@@ -91,25 +88,7 @@ class Multi_Model(nn.Module):
         return aggression_logits,attack_logits,toxicity_logits,loss
 
 
-    def save_pretrained(self, save_directory):
-        """ Save a model and its configuration file to a directory, so that it
-            can be re-loaded using the `:func:`~transformers.PreTrainedModel.from_pretrained`` class method.
-        """
-        assert os.path.isdir(save_directory), "Saving path should be a directory where the model and configuration can be saved"
 
-        # Only save the model it-self if we are using distributed training
-        model_to_save = self.module if hasattr(self, 'module') else self
-
-        model_to_save.config.save_pretrained(save_directory)
-
-        # If we save using the predefined names, we can load using `from_pretrained`
-        output_model_file = os.path.join(save_directory, WEIGHTS_NAME)
-        torch.save(model_to_save.state_dict(), output_model_file)
-        logger.info("Model weights saved in {}".format(output_model_file))
-
-    def load_pretrained(self,checkpoint):
-        model_to_save = self.module if hasattr(self, 'module') else self
-        model_to_save.load_state_dict(torch.load(checkpoint))
 
 
 
