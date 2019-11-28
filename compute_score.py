@@ -6,7 +6,8 @@ logger = logging.getLogger(__name__)
 
 try:
     from scipy.stats import pearsonr, spearmanr
-    from sklearn.metrics import matthews_corrcoef, f1_score,precision_score,recall_score
+    from sklearn.metrics import matthews_corrcoef, f1_score,precision_score,recall_score,roc_auc_score
+    from sklearn.metrics import roc_auc_score
     _has_sklearn = True
 except (AttributeError, ImportError) as e:
     logger.warning("To use data.metrics please install scikit-learn. See https://scikit-learn.org/stable/index.html")
@@ -26,17 +27,18 @@ if _has_sklearn:
         f1 = f1_score(y_true=labels, y_pred=preds)
         precision=precision_score(y_true=labels, y_pred=preds)
         recall=recall_score(y_true=labels, y_pred=preds)
+        auc=roc_auc_score(y_true=labels, y_score=preds)
         return {
             "acc": acc,
             "f1": f1,
             "precision":precision,
             "recall":recall,
+            "auc":auc,
         }
 
 
     def compute_metrics(task_name, preds, labels):
-        print("preds:",len(preds))
-        print("label:",len(labels))
+
         assert len(preds) == len(labels)
 
         if task_name=="aggression":

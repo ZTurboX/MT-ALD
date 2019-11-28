@@ -137,8 +137,16 @@ def train(args, train_dataset, model, tokenizer):
             if args.model_type != 'distilbert':
                 inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
+            if args.all_task:
+                aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
+            if args.aggression_attack_task:
+                aggression_logits, attack_logits, loss= model(**inputs)
+            if args.aggression_toxicity_task:
+                aggression_logits, toxicity_logits, loss=model(**inputs)
+            if args.attack_toxicity_task:
+                attack_logits, toxicity_logits, loss=model(**inputs)
 
-            aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
+
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -163,61 +171,216 @@ def train(args, train_dataset, model, tokenizer):
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
                     # Log metrics
 
-                    aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer)
+                    if args.all_task:
 
-                    aggression_f1=aggression_results['score']['f1']
-                    attack_f1=attack_results['score']['f1']
-                    toxicity_f1=toxicity_results['score']['f1']
+                        aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                    tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                    tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
-                    logging_loss = tr_loss
+                        aggression_f1=aggression_results['score']['f1']
+                        attack_f1=attack_results['score']['f1']
+                        toxicity_f1=toxicity_results['score']['f1']
 
-                    if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
-                        best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
-                        best_aggression_score.update(aggression_results)
-                        best_attack_score.update(attack_results)
-                        best_toxicity_score.update(toxicity_results)
+                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
+                        logging_loss = tr_loss
 
-                        # Save model checkpoint
-                        output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                        if not os.path.exists(output_dir):
-                            os.makedirs(output_dir)
-                        output_model_file = os.path.join(output_dir, "model.pt")
-                        torch.save(model.state_dict(), output_model_file)
-                        torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                        logger.info("Saving model checkpoint to %s", output_dir)
+                        if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
+                            best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
+                            best_aggression_score.update(aggression_results)
+                            best_attack_score.update(attack_results)
+                            best_toxicity_score.update(toxicity_results)
 
-                        aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
-                        attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
-                        toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
-                        with open(aggression_output_eval_file, "a") as writer:
-                            logger.info("***** best aggression results  *****")
-                            for key in sorted(aggression_results.keys()):
-                                logger.info("  %s = %s", key, str(aggression_results[key]))
-                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(aggression_results[key])))
+                            # Save model checkpoint
+                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                            if not os.path.exists(output_dir):
+                                os.makedirs(output_dir)
+                            output_model_file = os.path.join(output_dir, "model.pt")
+                            torch.save(model.state_dict(), output_model_file)
+                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                            logger.info("Saving model checkpoint to %s", output_dir)
 
-                        with open(attack_output_eval_file, "a") as writer:
-                            logger.info("***** best attack results  *****")
-                            for key in sorted(attack_results.keys()):
-                                logger.info("  %s = %s", key, str(attack_results[key]))
-                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(attack_results[key])))
+                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                            with open(aggression_output_eval_file, "a") as writer:
 
-                        with open(toxicity_output_eval_file, "a") as writer:
-                            logger.info("***** best toxicity results  *****")
-                            for key in sorted(toxicity_results.keys()):
-                                logger.info("  %s = %s", key, str(toxicity_results[key]))
-                                writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
+                                for key in sorted(aggression_results.keys()):
 
-                    logger.info("***** best  results checkpoint-{} *****".format(global_step))
-                    for key in sorted(best_aggression_score.keys()):
-                        logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(aggression_results[key])))
 
-                    for key in sorted(best_attack_score.keys()):
-                        logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+                            with open(attack_output_eval_file, "a") as writer:
 
-                    for key in sorted(best_toxicity_score.keys()):
-                        logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+                                for key in sorted(attack_results.keys()):
+
+                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(attack_results[key])))
+
+                            with open(toxicity_output_eval_file, "a") as writer:
+
+                                for key in sorted(toxicity_results.keys()):
+
+                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
+
+                        logger.info("************* best  results ***************")
+                        for key in sorted(best_aggression_score.keys()):
+                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+
+                        for key in sorted(best_attack_score.keys()):
+                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+
+                        for key in sorted(best_toxicity_score.keys()):
+                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+
+                    if args.aggression_attack_task:
+                        aggression_results, attack_results = evaluate(args, model, tokenizer)
+
+                        aggression_f1 = aggression_results['score']['f1']
+                        attack_f1 = attack_results['score']['f1']
+
+
+                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
+                        logging_loss = tr_loss
+
+                        if (aggression_f1 + attack_f1 ) / 2.0 > best_f1:
+                            best_f1 = (aggression_f1 + attack_f1 ) / 2.0
+                            best_aggression_score.update(aggression_results)
+                            best_attack_score.update(attack_results)
+
+                            # Save model checkpoint
+                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                            if not os.path.exists(output_dir):
+                                os.makedirs(output_dir)
+                            output_model_file = os.path.join(output_dir, "model.pt")
+                            torch.save(model.state_dict(), output_model_file)
+                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                            logger.info("Saving model checkpoint to %s", output_dir)
+
+                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                            with open(aggression_output_eval_file, "a") as writer:
+
+                                for key in sorted(aggression_results.keys()):
+                                    writer.write("checkpoint%s-%s = %s\n" % (
+                                    str(global_step), key, str(aggression_results[key])))
+
+                            with open(attack_output_eval_file, "a") as writer:
+
+                                for key in sorted(attack_results.keys()):
+                                    writer.write(
+                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
+
+
+
+                        logger.info("************* best  results ***************")
+                        for key in sorted(best_aggression_score.keys()):
+                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+
+                        for key in sorted(best_attack_score.keys()):
+                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+
+                    if args.aggression_toxicity_task:
+                        aggression_results, toxicity_results = evaluate(args, model, tokenizer)
+
+                        aggression_f1 = aggression_results['score']['f1']
+
+                        toxicity_f1 = toxicity_results['score']['f1']
+
+                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
+                        logging_loss = tr_loss
+
+                        if (aggression_f1  + toxicity_f1) / 2.0 > best_f1:
+                            best_f1 = (aggression_f1  + toxicity_f1) / 2.0
+                            best_aggression_score.update(aggression_results)
+
+                            best_toxicity_score.update(toxicity_results)
+
+                            # Save model checkpoint
+                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                            if not os.path.exists(output_dir):
+                                os.makedirs(output_dir)
+                            output_model_file = os.path.join(output_dir, "model.pt")
+                            torch.save(model.state_dict(), output_model_file)
+                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                            logger.info("Saving model checkpoint to %s", output_dir)
+
+                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+
+                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                            with open(aggression_output_eval_file, "a") as writer:
+
+                                for key in sorted(aggression_results.keys()):
+                                    writer.write("checkpoint%s-%s = %s\n" % (
+                                    str(global_step), key, str(aggression_results[key])))
+
+
+                            with open(toxicity_output_eval_file, "a") as writer:
+
+                                for key in sorted(toxicity_results.keys()):
+                                    writer.write(
+                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
+
+                        logger.info("************* best  results ***************")
+                        for key in sorted(best_aggression_score.keys()):
+                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+
+
+
+                        for key in sorted(best_toxicity_score.keys()):
+                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+
+                    if args.attack_toxicity_task:
+                        attack_results, toxicity_results = evaluate(args, model, tokenizer)
+
+
+                        attack_f1 = attack_results['score']['f1']
+                        toxicity_f1 = toxicity_results['score']['f1']
+
+                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
+                        logging_loss = tr_loss
+
+                        if ( attack_f1 + toxicity_f1) / 2.0 > best_f1:
+                            best_f1 = ( attack_f1 + toxicity_f1) / 2.0
+
+                            best_attack_score.update(attack_results)
+                            best_toxicity_score.update(toxicity_results)
+
+                            # Save model checkpoint
+                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                            if not os.path.exists(output_dir):
+                                os.makedirs(output_dir)
+                            output_model_file = os.path.join(output_dir, "model.pt")
+                            torch.save(model.state_dict(), output_model_file)
+                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                            logger.info("Saving model checkpoint to %s", output_dir)
+
+
+                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+
+
+                            with open(attack_output_eval_file, "a") as writer:
+
+                                for key in sorted(attack_results.keys()):
+                                    writer.write(
+                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
+
+                            with open(toxicity_output_eval_file, "a") as writer:
+
+                                for key in sorted(toxicity_results.keys()):
+                                    writer.write(
+                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
+
+                        logger.info("************* best  results ***************")
+                        for key in sorted(best_aggression_score.keys()):
+                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+
+                        for key in sorted(best_attack_score.keys()):
+                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+
+                        for key in sorted(best_toxicity_score.keys()):
+                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+
 
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -292,60 +455,182 @@ def evaluate(args, model, tokenizer, prefix=""):
                     inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                                'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
 
-                aggression_logits, attack_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
+                if args.all_task:
+                    aggression_logits, attack_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
+                if args.aggression_attack_task:
+                    aggression_logits, attack_logits, tmp_eval_loss = model(**inputs)
+                if args.aggression_toxicity_task:
+                    aggression_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
+                if args.attack_toxicity_task:
+                    attack_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
 
 
                 eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
             if aggression_preds is None and attack_preds is None and toxicity_preds is None:
-                aggression_preds = aggression_logits.detach().cpu().numpy()
-                aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
+                if args.all_task:
+                    aggression_preds = aggression_logits.detach().cpu().numpy()
+                    aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
 
-                attack_preds = attack_logits.detach().cpu().numpy()
-                attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
+                    attack_preds = attack_logits.detach().cpu().numpy()
+                    attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
 
-                toxicity_preds = toxicity_logits.detach().cpu().numpy()
-                toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
+                    toxicity_preds = toxicity_logits.detach().cpu().numpy()
+                    toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
+                if args.aggression_attack_task:
+                    aggression_preds = aggression_logits.detach().cpu().numpy()
+                    aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
+
+                    attack_preds = attack_logits.detach().cpu().numpy()
+                    attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
+                if args.aggression_toxicity_task:
+                    aggression_preds = aggression_logits.detach().cpu().numpy()
+                    aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
+
+                    toxicity_preds = toxicity_logits.detach().cpu().numpy()
+                    toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
+                if args.attack_toxicity_task:
+                    attack_preds = attack_logits.detach().cpu().numpy()
+                    attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
+
+                    toxicity_preds = toxicity_logits.detach().cpu().numpy()
+                    toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
+
             else:
-                aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
-                aggression_out_label_ids = np.append(aggression_out_label_ids, inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
+                if args.all_task:
+                    aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
+                    aggression_out_label_ids = np.append(aggression_out_label_ids, inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
 
-                attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
-                attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
+                    attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
+                    attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
 
-                toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
-                toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
+                    toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
+                    toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
+                if args.aggression_attack_task:
+                    aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
+                    aggression_out_label_ids = np.append(aggression_out_label_ids,inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
+
+                    attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
+                    attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
+                if args.aggression_toxicity_task:
+                    aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
+                    aggression_out_label_ids = np.append(aggression_out_label_ids,inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
+                    toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
+                    toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
+                if args.attack_toxicity_task:
+                    attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
+                    attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
+
+                    toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
+                    toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
+
+
+
+
 
         eval_loss = eval_loss / nb_eval_steps
 
-        aggression_preds = np.argmax(aggression_preds, axis=1)
-        attack_preds = np.argmax(attack_preds, axis=1)
-        toxicity_preds = np.argmax(toxicity_preds, axis=1)
+        if args.all_task:
+
+            aggression_preds = np.argmax(aggression_preds, axis=1)
+            attack_preds = np.argmax(attack_preds, axis=1)
+            toxicity_preds = np.argmax(toxicity_preds, axis=1)
 
 
-        aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
-        aggression_results.update(aggression_result)
+            aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
+            aggression_results.update(aggression_result)
 
-        attack_result = compute_metrics(eval_task, attack_preds, attack_out_label_ids)
-        attack_results.update(attack_result)
+            attack_result = compute_metrics(eval_task, attack_preds, attack_out_label_ids)
+            attack_results.update(attack_result)
 
-        toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
-        toxicity_results.update(toxicity_result)
+            toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
+            toxicity_results.update(toxicity_result)
 
-        logger.info("***** Eval aggression results {} *****".format(prefix))
-        for key in sorted(aggression_result.keys()):
-            logger.info("  %s = %s", key, str(aggression_result[key]))
+            logger.info("***** Eval aggression results {} *****".format(prefix))
+            for key in sorted(aggression_result.keys()):
+                logger.info("  %s = %s", key, str(aggression_result[key]))
 
-        logger.info("***** Eval attack results {} *****".format(prefix))
-        for key in sorted(attack_result.keys()):
-            logger.info("  %s = %s", key, str(attack_result[key]))
+            logger.info("***** Eval attack results {} *****".format(prefix))
+            for key in sorted(attack_result.keys()):
+                logger.info("  %s = %s", key, str(attack_result[key]))
 
-        logger.info("***** Eval toxicity results {} *****".format(prefix))
-        for key in sorted(toxicity_result.keys()):
-            logger.info("  %s = %s", key, str(toxicity_result[key]))
+            logger.info("***** Eval toxicity results {} *****".format(prefix))
+            for key in sorted(toxicity_result.keys()):
+                logger.info("  %s = %s", key, str(toxicity_result[key]))
+
+        if args.aggression_attack_task:
+            aggression_preds = np.argmax(aggression_preds, axis=1)
+            attack_preds = np.argmax(attack_preds, axis=1)
 
 
-    return aggression_results,attack_results,toxicity_results
+            aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
+            aggression_results.update(aggression_result)
+
+            attack_result = compute_metrics(eval_task, attack_preds, attack_out_label_ids)
+            attack_results.update(attack_result)
+
+
+
+            logger.info("***** Eval aggression results {} *****".format(prefix))
+            for key in sorted(aggression_result.keys()):
+                logger.info("  %s = %s", key, str(aggression_result[key]))
+
+            logger.info("***** Eval attack results {} *****".format(prefix))
+            for key in sorted(attack_result.keys()):
+                logger.info("  %s = %s", key, str(attack_result[key]))
+
+        if args.aggression_toxicity_task:
+            aggression_preds = np.argmax(aggression_preds, axis=1)
+
+            toxicity_preds = np.argmax(toxicity_preds, axis=1)
+
+            aggression_result = compute_metrics(eval_task, aggression_preds, aggression_out_label_ids)
+            aggression_results.update(aggression_result)
+
+
+            toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
+            toxicity_results.update(toxicity_result)
+
+            logger.info("***** Eval aggression results {} *****".format(prefix))
+            for key in sorted(aggression_result.keys()):
+                logger.info("  %s = %s", key, str(aggression_result[key]))
+
+
+
+            logger.info("***** Eval toxicity results {} *****".format(prefix))
+            for key in sorted(toxicity_result.keys()):
+                logger.info("  %s = %s", key, str(toxicity_result[key]))
+        if args.attack_toxicity_task:
+
+            attack_preds = np.argmax(attack_preds, axis=1)
+            toxicity_preds = np.argmax(toxicity_preds, axis=1)
+
+
+            attack_result = compute_metrics(eval_task, attack_preds, attack_out_label_ids)
+            attack_results.update(attack_result)
+
+            toxicity_result = compute_metrics(eval_task, toxicity_preds, toxicity_out_label_ids)
+            toxicity_results.update(toxicity_result)
+
+
+            logger.info("***** Eval attack results {} *****".format(prefix))
+            for key in sorted(attack_result.keys()):
+                logger.info("  %s = %s", key, str(attack_result[key]))
+
+            logger.info("***** Eval toxicity results {} *****".format(prefix))
+            for key in sorted(toxicity_result.keys()):
+                logger.info("  %s = %s", key, str(toxicity_result[key]))
+
+
+    if args.all_task:
+        return aggression_results,attack_results,toxicity_results
+    if args.aggression_attack_task:
+        return aggression_results, attack_results
+    if args.aggression_toxicity_task:
+        return aggression_results, toxicity_results
+    if args.attack_toxicity_task:
+        return attack_results, toxicity_results
+
 
 
 
@@ -377,18 +662,18 @@ def main():
                         help="The maximum total input sequence length after tokenization. Sequences longer "
                              "than this will be truncated, sequences shorter will be padded.")
 
-    parser.add_argument("--do_train", default=False,action='store_true', help="Whether to run training.")
+    parser.add_argument("--do_train", default=True,action='store_true', help="Whether to run training.")
     parser.add_argument("--do_eval", default=True,action='store_true', help="Whether to run eval on the dev set.")
     parser.add_argument("--do_test", default=False, action='store_true', help="Whether to run test on the test set.")
     parser.add_argument("--evaluate_during_training", default=True,action='store_true',
                         help="Rul evaluation during training at each logging step.")
     parser.add_argument("--do_lower_case", default=True,action='store_true', help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=2, type=int, help="Batch size per GPU/CPU for training.")
-    parser.add_argument("--per_gpu_eval_batch_size", default=2, type=int, help="Batch size per GPU/CPU for evaluation.")
+    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int, help="Batch size per GPU/CPU for training.")
+    parser.add_argument("--per_gpu_eval_batch_size", default=16, type=int, help="Batch size per GPU/CPU for evaluation.")
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
-    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--learning_rate", default=5e-6, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
@@ -417,6 +702,15 @@ def main():
                              "See details at https://nvidia.github.io/apex/amp.html")
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
 
+    parser.add_argument("--mPos", default=1.5, type=float)
+    parser.add_argument("--mNeg", default=1.5, type=float)
+    parser.add_argument("--gamma", default=0.05, type=float)
+
+    parser.add_argument("--all_task",default=False)
+    parser.add_argument("--aggression_attack_task",default=False)
+    parser.add_argument("--aggression_toxicity_task",default=False)
+    parser.add_argument("--attack_toxicity_task",default=True)
+
     args = parser.parse_args()
 
     if os.path.exists(args.output_dir) and os.listdir(
@@ -429,12 +723,12 @@ def main():
     # Setup CUDA, GPU & distributed training
 
     if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        device = torch.device("cuda:1" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         #args.n_gpu = torch.cuda.device_count()
         args.n_gpu = 1
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
+        device = torch.device("cuda:1", args.local_rank)
         torch.distributed.init_process_group(backend='nccl')
         args.n_gpu = 1
     args.device = device
