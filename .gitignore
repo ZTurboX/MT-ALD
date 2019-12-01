@@ -2,3 +2,5 @@ data/
 bert-base-uncased/
 runs/
 check_points/
+roberta-base/
+xlnet-base-cased/

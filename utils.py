@@ -7,6 +7,8 @@ import torch
 from torch.utils.data import TensorDataset
 
 
+
+
 processors = {"aggression": AggressionProcessor,"attack":AttackProcessor,"toxicity":ToxicityProcessor,"multi_task":Multi_Task_Processor}
 output_modes = {"aggression": "classification", "attack":"classification","toxicity":"classification","multi_task":"classification"}
 
@@ -136,14 +138,15 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
 
+
         examples = processor.get_dev_examples(args.data_dir) if evaluate else processor.get_train_examples(
             args.data_dir)
         features = convert_examples_to_features(examples, tokenizer, label_list=label_list,
                                                 max_length=args.max_seq_length, output_mode=output_mode,
-                                                pad_on_left=bool(args.model_type in ['xlnet']),
+                                                pad_on_left=bool(args.model_type in ["xlnet"]),
                                                 # pad on the left for xlnet
                                                 pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                                                pad_token_segment_id=4 if args.model_type in ['xlnet'] else 0, )
+                                                pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0, )
         if args.local_rank in [-1, 0]:
             logger.info("Saving features into cached file %s", cached_features_file)
             torch.save(features, cached_features_file)

@@ -20,7 +20,9 @@ except:
 
 from tqdm import tqdm, trange
 
-from transformers import (WEIGHTS_NAME, BertConfig, BertModel, BertTokenizer)
+from transformers import (WEIGHTS_NAME, BertConfig, BertModel, BertTokenizer,
+                          RobertaConfig,RobertaModel,RobertaTokenizer,
+                          XLNetConfig,XLNetModel,XLNetTokenizer)
 
 from transformers import AdamW, WarmupLinearSchedule
 
@@ -37,7 +39,9 @@ logger = logging.getLogger(__name__)
 ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in
                   (BertConfig,)), ())
 
-MODEL_CLASSES = {'bert': (BertConfig, BertModel, BertTokenizer)}
+MODEL_CLASSES = {'bert': (BertConfig, BertModel, BertTokenizer),
+                 'roberta':(RobertaConfig,RobertaModel,RobertaTokenizer),
+                 'xlnet':(XLNetConfig,XLNetModel,XLNetTokenizer)}
 
 
 def set_seed(args):
@@ -61,9 +65,16 @@ def train(args, train_dataset, model, tokenizer):
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
-    aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
-    attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
-    toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+    if args.model_type in ["bert","xlnet"]:
+
+        aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
+        attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
+        toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+    elif args.model_type=="roberta":
+        aggression_tensor = torch.tensor([0], dtype=torch.long).to(args.device)
+        attack_tensor = torch.tensor([1], dtype=torch.long).to(args.device)
+        toxicity_tensor = torch.tensor([2], dtype=torch.long).to(args.device)
+
 
     char_vocab=get_char_vocab()
     aggression_char_ids=char2ids("aggression",char_vocab)
@@ -139,11 +150,11 @@ def train(args, train_dataset, model, tokenizer):
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
             if args.all_task:
                 aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
-            if args.aggression_attack_task:
+            elif args.aggression_attack_task:
                 aggression_logits, attack_logits, loss= model(**inputs)
-            if args.aggression_toxicity_task:
+            elif args.aggression_toxicity_task:
                 aggression_logits, toxicity_logits, loss=model(**inputs)
-            if args.attack_toxicity_task:
+            elif args.attack_toxicity_task:
                 attack_logits, toxicity_logits, loss=model(**inputs)
 
 
@@ -229,7 +240,7 @@ def train(args, train_dataset, model, tokenizer):
                         for key in sorted(best_toxicity_score.keys()):
                             logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
-                    if args.aggression_attack_task:
+                    elif args.aggression_attack_task:
                         aggression_results, attack_results = evaluate(args, model, tokenizer)
 
                         aggression_f1 = aggression_results['score']['f1']
@@ -277,7 +288,7 @@ def train(args, train_dataset, model, tokenizer):
                         for key in sorted(best_attack_score.keys()):
                             logger.info("attack-%s = %s", key, str(best_attack_score[key]))
 
-                    if args.aggression_toxicity_task:
+                    elif args.aggression_toxicity_task:
                         aggression_results, toxicity_results = evaluate(args, model, tokenizer)
 
                         aggression_f1 = aggression_results['score']['f1']
@@ -328,7 +339,7 @@ def train(args, train_dataset, model, tokenizer):
                         for key in sorted(best_toxicity_score.keys()):
                             logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
-                    if args.attack_toxicity_task:
+                    elif args.attack_toxicity_task:
                         attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
 
@@ -415,9 +426,15 @@ def evaluate(args, model, tokenizer, prefix=""):
         eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-        aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
-        attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
-        toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+        if args.model_type in ["bert","xlnet"]:
+
+            aggression_tensor = torch.tensor(tokenizer.encode("aggression"), dtype=torch.long).to(args.device)
+            attack_tensor = torch.tensor(tokenizer.encode("attack"), dtype=torch.long).to(args.device)
+            toxicity_tensor = torch.tensor(tokenizer.encode("toxicity"), dtype=torch.long).to(args.device)
+        elif args.model_type == "roberta":
+            aggression_tensor = torch.tensor([0], dtype=torch.long).to(args.device)
+            attack_tensor = torch.tensor([1], dtype=torch.long).to(args.device)
+            toxicity_tensor = torch.tensor([2], dtype=torch.long).to(args.device)
 
         char_vocab = get_char_vocab()
         aggression_char_ids = char2ids("aggression", char_vocab)
@@ -477,19 +494,19 @@ def evaluate(args, model, tokenizer, prefix=""):
 
                     toxicity_preds = toxicity_logits.detach().cpu().numpy()
                     toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
-                if args.aggression_attack_task:
+                elif args.aggression_attack_task:
                     aggression_preds = aggression_logits.detach().cpu().numpy()
                     aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
 
                     attack_preds = attack_logits.detach().cpu().numpy()
                     attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
-                if args.aggression_toxicity_task:
+                elif args.aggression_toxicity_task:
                     aggression_preds = aggression_logits.detach().cpu().numpy()
                     aggression_out_label_ids = inputs['aggression_labels'].detach().cpu().numpy()
 
                     toxicity_preds = toxicity_logits.detach().cpu().numpy()
                     toxicity_out_label_ids = inputs['toxicity_labels'].detach().cpu().numpy()
-                if args.attack_toxicity_task:
+                elif args.attack_toxicity_task:
                     attack_preds = attack_logits.detach().cpu().numpy()
                     attack_out_label_ids = inputs['attack_labels'].detach().cpu().numpy()
 
@@ -506,18 +523,18 @@ def evaluate(args, model, tokenizer, prefix=""):
 
                     toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
                     toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
-                if args.aggression_attack_task:
+                elif args.aggression_attack_task:
                     aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
                     aggression_out_label_ids = np.append(aggression_out_label_ids,inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
 
                     attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
                     attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
-                if args.aggression_toxicity_task:
+                elif args.aggression_toxicity_task:
                     aggression_preds = np.append(aggression_preds, aggression_logits.detach().cpu().numpy(), axis=0)
                     aggression_out_label_ids = np.append(aggression_out_label_ids,inputs['aggression_labels'].detach().cpu().numpy(), axis=0)
                     toxicity_preds = np.append(toxicity_preds, toxicity_logits.detach().cpu().numpy(), axis=0)
                     toxicity_out_label_ids = np.append(toxicity_out_label_ids,inputs['toxicity_labels'].detach().cpu().numpy(), axis=0)
-                if args.attack_toxicity_task:
+                elif args.attack_toxicity_task:
                     attack_preds = np.append(attack_preds, attack_logits.detach().cpu().numpy(), axis=0)
                     attack_out_label_ids = np.append(attack_out_label_ids,inputs['attack_labels'].detach().cpu().numpy(), axis=0)
 
@@ -558,7 +575,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             for key in sorted(toxicity_result.keys()):
                 logger.info("  %s = %s", key, str(toxicity_result[key]))
 
-        if args.aggression_attack_task:
+        elif args.aggression_attack_task:
             aggression_preds = np.argmax(aggression_preds, axis=1)
             attack_preds = np.argmax(attack_preds, axis=1)
 
@@ -579,7 +596,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             for key in sorted(attack_result.keys()):
                 logger.info("  %s = %s", key, str(attack_result[key]))
 
-        if args.aggression_toxicity_task:
+        elif args.aggression_toxicity_task:
             aggression_preds = np.argmax(aggression_preds, axis=1)
 
             toxicity_preds = np.argmax(toxicity_preds, axis=1)
@@ -600,7 +617,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             logger.info("***** Eval toxicity results {} *****".format(prefix))
             for key in sorted(toxicity_result.keys()):
                 logger.info("  %s = %s", key, str(toxicity_result[key]))
-        if args.attack_toxicity_task:
+        elif args.attack_toxicity_task:
 
             attack_preds = np.argmax(attack_preds, axis=1)
             toxicity_preds = np.argmax(toxicity_preds, axis=1)
@@ -624,11 +641,11 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     if args.all_task:
         return aggression_results,attack_results,toxicity_results
-    if args.aggression_attack_task:
+    elif args.aggression_attack_task:
         return aggression_results, attack_results
-    if args.aggression_toxicity_task:
+    elif args.aggression_toxicity_task:
         return aggression_results, toxicity_results
-    if args.attack_toxicity_task:
+    elif args.attack_toxicity_task:
         return attack_results, toxicity_results
 
 
@@ -640,9 +657,9 @@ def main():
     ## Required parameters
     parser.add_argument("--data_dir", default="./data", type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--model_type", default="bert", type=str,
+    parser.add_argument("--model_type", default="xlnet", type=str,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
-    parser.add_argument("--model_name_or_path", default="./bert-base-uncased/bert-base-uncased-pytorch_model.bin", type=str,
+    parser.add_argument("--model_name_or_path", default="./roberta-base/roberta-base-pytorch_model.bin", type=str,
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(
                             ALL_MODELS))
 
@@ -652,9 +669,9 @@ def main():
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
-    parser.add_argument("--config_name", default="./bert-base-uncased/bert-base-uncased-config.json", type=str,
+    parser.add_argument("--config_name", default="./roberta-base/roberta-base-config.json", type=str,
                         help="Pretrained config name or path if not the same as model_name")
-    parser.add_argument("--tokenizer_name", default="./bert-base-uncased/bert-base-uncased-vocab.txt", type=str,
+    parser.add_argument("--tokenizer_name", default="./roberta-base/roberta-base-vocab.json", type=str,
                         help="Pretrained tokenizer name or path if not the same as model_name")
     parser.add_argument("--cache_dir", default="", type=str,
                         help="Where do you want to store the pre-trained models downloaded from s3")
@@ -677,14 +694,14 @@ def main():
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=10.0, type=float,
+    parser.add_argument("--num_train_epochs", default=50.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
     parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
 
-    parser.add_argument('--logging_steps', type=int, default=200, help="Log every X updates steps.")
-    parser.add_argument('--save_steps', type=int, default=200, help="Save checkpoint every X updates steps.")
+    parser.add_argument('--logging_steps', type=int, default=2975, help="Log every X updates steps.")
+    parser.add_argument('--save_steps', type=int, default=2975, help="Save checkpoint every X updates steps.")
     parser.add_argument("--eval_all_checkpoints", action='store_true',
                         help="Evaluate all checkpoints starting with the same prefix as model_name ending and ending with step number")
     parser.add_argument("--no_cuda", action='store_true', help="Avoid using CUDA when available")
@@ -706,10 +723,10 @@ def main():
     parser.add_argument("--mNeg", default=1.5, type=float)
     parser.add_argument("--gamma", default=0.05, type=float)
 
-    parser.add_argument("--all_task",default=False)
+    parser.add_argument("--all_task",default=True)
     parser.add_argument("--aggression_attack_task",default=False)
     parser.add_argument("--aggression_toxicity_task",default=False)
-    parser.add_argument("--attack_toxicity_task",default=True)
+    parser.add_argument("--attack_toxicity_task",default=False)
 
     args = parser.parse_args()
 
@@ -758,6 +775,7 @@ def main():
     args.model_type = args.model_type.lower()
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
 
+    '''
     bert_config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,
                                           num_labels=num_labels, finetuning_task=args.task_name)
    
@@ -766,8 +784,26 @@ def main():
 
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.bert_vocab,
                                                 do_lower_case=args.do_lower_case)
+    '''
 
-    model=Multi_Model(args,bert_config)
+    if args.model_type=="bert":
+        args.config_name="./bert-base-uncased/bert-base-uncased-config.json"
+        args.tokenizer_name="./bert-base-uncased/bert-base-uncased-vocab.txt"
+        args.model_name_or_path="./bert-base-uncased/bert-base-uncased-pytorch_model.bin"
+    elif args.model_type=="xlnet":
+        args.config_name = "./xlnet-base-cased/xlnet-base-cased-config.json"
+        args.tokenizer_name = "./xlnet-base-cased/xlnet-base-cased-spiece.model"
+        args.model_name_or_path = "./xlnet-base-cased/xlnet-base-cased-pytorch_model.bin"
+    elif args.model_type=="roberta":
+        args.config_name = "./roberta-base/roberta-base-config.json"
+        args.tokenizer_name = "./roberta-base/roberta-base-vocab.json"
+        args.model_name_or_path = "./roberta-base/roberta-base-pytorch_model.bin"
+
+
+    config=config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,num_labels=num_labels,finetuning_task=args.task_name)
+    tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.bert_vocab)
+
+    model=Multi_Model(args,config)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
