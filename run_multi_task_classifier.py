@@ -657,7 +657,7 @@ def main():
     ## Required parameters
     parser.add_argument("--data_dir", default="./data", type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--model_type", default="xlnet", type=str,
+    parser.add_argument("--model_type", default="bert", type=str,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
     parser.add_argument("--model_name_or_path", default="./roberta-base/roberta-base-pytorch_model.bin", type=str,
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(
@@ -694,7 +694,7 @@ def main():
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight deay if we apply some.")
     parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=50.0, type=float,
+    parser.add_argument("--num_train_epochs", default=10.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
@@ -740,12 +740,12 @@ def main():
     # Setup CUDA, GPU & distributed training
 
     if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda:1" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        device = torch.device("cuda:0" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         #args.n_gpu = torch.cuda.device_count()
         args.n_gpu = 1
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda:1", args.local_rank)
+        device = torch.device("cuda:0", args.local_rank)
         torch.distributed.init_process_group(backend='nccl')
         args.n_gpu = 1
     args.device = device
