@@ -133,6 +133,7 @@ def train(args, train_dataset, model, tokenizer):
     best_aggression_score={}
     best_attack_score={}
     best_toxicity_score={}
+    epoch_num=0
     model.zero_grad()
     train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0])
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
@@ -149,7 +150,7 @@ def train(args, train_dataset, model, tokenizer):
                 inputs['token_type_ids'] = batch[2] if args.model_type in ['bert',
                                                                            'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
             if args.all_task:
-                aggression_logits, attack_logits, toxicity_logits, loss = model(**inputs)
+                aggression_logits, attack_logits, toxicity_logits, loss,_,_,_ = model(**inputs)
             elif args.aggression_attack_task:
                 aggression_logits, attack_logits, loss= model(**inputs)
             elif args.aggression_toxicity_task:
@@ -178,225 +179,240 @@ def train(args, train_dataset, model, tokenizer):
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
-
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
-                    # Log metrics
+                    tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, epoch_num)
+                    logging_loss = tr_loss
 
-                    if args.all_task:
 
-                        aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                        aggression_f1=aggression_results['score']['f1']
-                        attack_f1=attack_results['score']['f1']
-                        toxicity_f1=toxicity_results['score']['f1']
+        if args.all_task:
 
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
-                        logging_loss = tr_loss
+            aggression_results, attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                        if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
-                            best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
-                            best_aggression_score.update(aggression_results)
-                            best_attack_score.update(attack_results)
-                            best_toxicity_score.update(toxicity_results)
+            aggression_f1=aggression_results['score']['f1']
+            attack_f1=attack_results['score']['f1']
+            toxicity_f1=toxicity_results['score']['f1']
 
-                            # Save model checkpoint
-                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            if not os.path.exists(output_dir):
-                                os.makedirs(output_dir)
-                            output_model_file = os.path.join(output_dir, "model.pt")
-                            torch.save(model.state_dict(), output_model_file)
-                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                            logger.info("Saving model checkpoint to %s", output_dir)
+            tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch_num)
 
-                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
-                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
-                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
-                            with open(aggression_output_eval_file, "a") as writer:
+            tb_writer.add_scalars('accuracy', {'aggression': aggression_results['score']['acc']/1,
+                                        'attack': attack_results['score']['acc']/1,
+                                        'toxicity': toxicity_results['score']['acc']/1}, epoch_num)
 
-                                for key in sorted(aggression_results.keys()):
+            tb_writer.add_scalars('f1', {'aggression':aggression_results['score']['f1']/1,
+                                        'attack':attack_results['score']['f1']/1,
+                                        'toxicity':toxicity_results['score']['f1']/1}, epoch_num)
+            tb_writer.add_scalars('precision', {'aggression': aggression_results['score']['precision']/1,
+                                        'attack': attack_results['score']['precision']/1,
+                                        'toxicity': toxicity_results['score']['precision']/1}, epoch_num)
+            tb_writer.add_scalars('recall', {'aggression': aggression_results['score']['recall']/1,
+                                               'attack': attack_results['score']['recall']/1,
+                                               'toxicity': toxicity_results['score']['recall']/1}, epoch_num)
+            tb_writer.add_scalars('auc', {'aggression': aggression_results['score']['auc']/1,
+                                            'attack': attack_results['score']['auc']/1,
+                                            'toxicity': toxicity_results['score']['auc']/1}, epoch_num)
 
-                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(aggression_results[key])))
 
-                            with open(attack_output_eval_file, "a") as writer:
+            if (aggression_f1+attack_f1+toxicity_f1)/3.0>best_f1:
+                best_f1=(aggression_f1+attack_f1+toxicity_f1)/3.0
+                best_aggression_score.update(aggression_results)
+                best_attack_score.update(attack_results)
+                best_toxicity_score.update(toxicity_results)
 
-                                for key in sorted(attack_results.keys()):
+                # Save model checkpoint
+                output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_model_file = os.path.join(output_dir, "model.pt")
+                torch.save(model.state_dict(), output_model_file)
+                torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                logger.info("Saving model checkpoint to %s", output_dir)
 
-                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(attack_results[key])))
+                aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+                attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                with open(aggression_output_eval_file, "a") as writer:
 
-                            with open(toxicity_output_eval_file, "a") as writer:
+                    for key in sorted(aggression_results.keys()):
 
-                                for key in sorted(toxicity_results.keys()):
+                        writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(aggression_results[key])))
 
-                                    writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
+                with open(attack_output_eval_file, "a") as writer:
 
-                        logger.info("************* best  results ***************")
-                        for key in sorted(best_aggression_score.keys()):
-                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+                    for key in sorted(attack_results.keys()):
 
-                        for key in sorted(best_attack_score.keys()):
-                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+                        writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(attack_results[key])))
 
-                        for key in sorted(best_toxicity_score.keys()):
-                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+                with open(toxicity_output_eval_file, "a") as writer:
 
-                    elif args.aggression_attack_task:
-                        aggression_results, attack_results = evaluate(args, model, tokenizer)
+                    for key in sorted(toxicity_results.keys()):
 
-                        aggression_f1 = aggression_results['score']['f1']
-                        attack_f1 = attack_results['score']['f1']
+                        writer.write("checkpoint%s-%s = %s\n" % (str(global_step),key, str(toxicity_results[key])))
 
+            logger.info("************* best  results ***************")
+            for key in sorted(best_aggression_score.keys()):
+                logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
 
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
-                        logging_loss = tr_loss
+            for key in sorted(best_attack_score.keys()):
+                logger.info("attack-%s = %s", key, str(best_attack_score[key]))
 
-                        if (aggression_f1 + attack_f1 ) / 2.0 > best_f1:
-                            best_f1 = (aggression_f1 + attack_f1 ) / 2.0
-                            best_aggression_score.update(aggression_results)
-                            best_attack_score.update(attack_results)
+            for key in sorted(best_toxicity_score.keys()):
+                logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
-                            # Save model checkpoint
-                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            if not os.path.exists(output_dir):
-                                os.makedirs(output_dir)
-                            output_model_file = os.path.join(output_dir, "model.pt")
-                            torch.save(model.state_dict(), output_model_file)
-                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                            logger.info("Saving model checkpoint to %s", output_dir)
+        elif args.aggression_attack_task:
+            aggression_results, attack_results = evaluate(args, model, tokenizer)
 
-                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
-                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
-                            with open(aggression_output_eval_file, "a") as writer:
+            aggression_f1 = aggression_results['score']['f1']
+            attack_f1 = attack_results['score']['f1']
 
-                                for key in sorted(aggression_results.keys()):
-                                    writer.write("checkpoint%s-%s = %s\n" % (
-                                    str(global_step), key, str(aggression_results[key])))
+            tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch_num)
+            tb_writer.add_scalar('loss', tr_loss / args.logging_steps, epoch_num)
 
-                            with open(attack_output_eval_file, "a") as writer:
+            if (aggression_f1 + attack_f1 ) / 2.0 > best_f1:
+                best_f1 = (aggression_f1 + attack_f1 ) / 2.0
+                best_aggression_score.update(aggression_results)
+                best_attack_score.update(attack_results)
 
-                                for key in sorted(attack_results.keys()):
-                                    writer.write(
-                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
+                # Save model checkpoint
+                output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_model_file = os.path.join(output_dir, "model.pt")
+                torch.save(model.state_dict(), output_model_file)
+                torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                logger.info("Saving model checkpoint to %s", output_dir)
 
+                aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+                attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                with open(aggression_output_eval_file, "a") as writer:
 
+                    for key in sorted(aggression_results.keys()):
+                        writer.write("checkpoint%s-%s = %s\n" % (
+                        str(global_step), key, str(aggression_results[key])))
 
-                        logger.info("************* best  results ***************")
-                        for key in sorted(best_aggression_score.keys()):
-                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+                with open(attack_output_eval_file, "a") as writer:
 
-                        for key in sorted(best_attack_score.keys()):
-                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+                    for key in sorted(attack_results.keys()):
+                        writer.write(
+                            "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
 
-                    elif args.aggression_toxicity_task:
-                        aggression_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                        aggression_f1 = aggression_results['score']['f1']
 
-                        toxicity_f1 = toxicity_results['score']['f1']
+            logger.info("************* best  results ***************")
+            for key in sorted(best_aggression_score.keys()):
+                logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
 
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
-                        logging_loss = tr_loss
+            for key in sorted(best_attack_score.keys()):
+                logger.info("attack-%s = %s", key, str(best_attack_score[key]))
 
-                        if (aggression_f1  + toxicity_f1) / 2.0 > best_f1:
-                            best_f1 = (aggression_f1  + toxicity_f1) / 2.0
-                            best_aggression_score.update(aggression_results)
+        elif args.aggression_toxicity_task:
+            aggression_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                            best_toxicity_score.update(toxicity_results)
+            aggression_f1 = aggression_results['score']['f1']
 
-                            # Save model checkpoint
-                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            if not os.path.exists(output_dir):
-                                os.makedirs(output_dir)
-                            output_model_file = os.path.join(output_dir, "model.pt")
-                            torch.save(model.state_dict(), output_model_file)
-                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                            logger.info("Saving model checkpoint to %s", output_dir)
+            toxicity_f1 = toxicity_results['score']['f1']
 
-                            aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
+            tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch_num)
+            tb_writer.add_scalar('loss', tr_loss / args.logging_steps, epoch_num)
+            if (aggression_f1  + toxicity_f1) / 2.0 > best_f1:
+                best_f1 = (aggression_f1  + toxicity_f1) / 2.0
+                best_aggression_score.update(aggression_results)
 
-                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
-                            with open(aggression_output_eval_file, "a") as writer:
+                best_toxicity_score.update(toxicity_results)
 
-                                for key in sorted(aggression_results.keys()):
-                                    writer.write("checkpoint%s-%s = %s\n" % (
-                                    str(global_step), key, str(aggression_results[key])))
+                # Save model checkpoint
+                output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_model_file = os.path.join(output_dir, "model.pt")
+                torch.save(model.state_dict(), output_model_file)
+                torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                logger.info("Saving model checkpoint to %s", output_dir)
 
+                aggression_output_eval_file = os.path.join(args.output_dir, "aggression_eval_results.txt")
 
-                            with open(toxicity_output_eval_file, "a") as writer:
+                toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                with open(aggression_output_eval_file, "a") as writer:
 
-                                for key in sorted(toxicity_results.keys()):
-                                    writer.write(
-                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
+                    for key in sorted(aggression_results.keys()):
+                        writer.write("checkpoint%s-%s = %s\n" % (
+                        str(global_step), key, str(aggression_results[key])))
 
-                        logger.info("************* best  results ***************")
-                        for key in sorted(best_aggression_score.keys()):
-                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
 
+                with open(toxicity_output_eval_file, "a") as writer:
 
+                    for key in sorted(toxicity_results.keys()):
+                        writer.write(
+                            "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
 
-                        for key in sorted(best_toxicity_score.keys()):
-                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+            logger.info("************* best  results ***************")
+            for key in sorted(best_aggression_score.keys()):
+                logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
 
-                    elif args.attack_toxicity_task:
-                        attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
 
-                        attack_f1 = attack_results['score']['f1']
-                        toxicity_f1 = toxicity_results['score']['f1']
+            for key in sorted(best_toxicity_score.keys()):
+                logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
-                        tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar('loss', (tr_loss - logging_loss) / args.logging_steps, global_step)
-                        logging_loss = tr_loss
+        elif args.attack_toxicity_task:
+            attack_results, toxicity_results = evaluate(args, model, tokenizer)
 
-                        if ( attack_f1 + toxicity_f1) / 2.0 > best_f1:
-                            best_f1 = ( attack_f1 + toxicity_f1) / 2.0
 
-                            best_attack_score.update(attack_results)
-                            best_toxicity_score.update(toxicity_results)
+            attack_f1 = attack_results['score']['f1']
+            toxicity_f1 = toxicity_results['score']['f1']
 
-                            # Save model checkpoint
-                            output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            if not os.path.exists(output_dir):
-                                os.makedirs(output_dir)
-                            output_model_file = os.path.join(output_dir, "model.pt")
-                            torch.save(model.state_dict(), output_model_file)
-                            torch.save(args, os.path.join(output_dir, 'training_args.bin'))
-                            logger.info("Saving model checkpoint to %s", output_dir)
+            tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch_num)
+            tb_writer.add_scalar('loss', tr_loss / args.logging_steps, epoch_num)
 
+            if ( attack_f1 + toxicity_f1) / 2.0 > best_f1:
+                best_f1 = ( attack_f1 + toxicity_f1) / 2.0
 
-                            attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
-                            toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
+                best_attack_score.update(attack_results)
+                best_toxicity_score.update(toxicity_results)
 
+                # Save model checkpoint
+                output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_model_file = os.path.join(output_dir, "model.pt")
+                torch.save(model.state_dict(), output_model_file)
+                torch.save(args, os.path.join(output_dir, 'training_args.bin'))
+                logger.info("Saving model checkpoint to %s", output_dir)
 
-                            with open(attack_output_eval_file, "a") as writer:
 
-                                for key in sorted(attack_results.keys()):
-                                    writer.write(
-                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
+                attack_output_eval_file = os.path.join(args.output_dir, "attack_eval_results.txt")
+                toxicity_output_eval_file = os.path.join(args.output_dir, "toxicity_eval_results.txt")
 
-                            with open(toxicity_output_eval_file, "a") as writer:
 
-                                for key in sorted(toxicity_results.keys()):
-                                    writer.write(
-                                        "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
+                with open(attack_output_eval_file, "a") as writer:
 
-                        logger.info("************* best  results ***************")
-                        for key in sorted(best_aggression_score.keys()):
-                            logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+                    for key in sorted(attack_results.keys()):
+                        writer.write(
+                            "checkpoint%s-%s = %s\n" % (str(global_step), key, str(attack_results[key])))
 
-                        for key in sorted(best_attack_score.keys()):
-                            logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+                with open(toxicity_output_eval_file, "a") as writer:
 
-                        for key in sorted(best_toxicity_score.keys()):
-                            logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
+                    for key in sorted(toxicity_results.keys()):
+                        writer.write(
+                            "checkpoint%s-%s = %s\n" % (str(global_step), key, str(toxicity_results[key])))
+
+            logger.info("************* best  results ***************")
+            for key in sorted(best_aggression_score.keys()):
+                logger.info("aggression-%s = %s", key, str(best_aggression_score[key]))
+
+            for key in sorted(best_attack_score.keys()):
+                logger.info("attack-%s = %s", key, str(best_attack_score[key]))
+
+            for key in sorted(best_toxicity_score.keys()):
+                logger.info("toxicity-%s = %s", key, str(best_toxicity_score[key]))
 
 
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+
+        epoch_num+=1
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
@@ -473,7 +489,7 @@ def evaluate(args, model, tokenizer, prefix=""):
                                                                                'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
 
                 if args.all_task:
-                    aggression_logits, attack_logits, toxicity_logits, tmp_eval_loss = model(**inputs)
+                    aggression_logits, attack_logits, toxicity_logits, tmp_eval_loss,_,_,_ = model(**inputs)
                 if args.aggression_attack_task:
                     aggression_logits, attack_logits, tmp_eval_loss = model(**inputs)
                 if args.aggression_toxicity_task:

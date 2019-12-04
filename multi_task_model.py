@@ -140,7 +140,7 @@ class Multi_Model(nn.Module):
         attn_weight = torch.cat((task_embedding.permute(1, 0, 2).expand_as(encoder_outputs), encoder_outputs),dim=2)
         attn_weight = F.softmax(F.selu(self.attn(attn_weight)), dim=1)
         attn_applied = torch.bmm(attn_weight.permute(0, 2, 1), encoder_outputs).squeeze(1)
-        return attn_applied
+        return attn_applied,attn_weight
 
 
 
@@ -177,9 +177,9 @@ class Multi_Model(nn.Module):
             toxicity_embedding = self.word_char_embedding(toxicity_tensor, toxicity_char_tensor)
 
 
-            aggression_atten = self.task_specific_attention(aggression_embedding, hidden)
-            attack_atten = self.task_specific_attention(attack_embedding, hidden)
-            toxicity_atten = self.task_specific_attention(toxicity_embedding, hidden)
+            aggression_atten,aggression_weight = self.task_specific_attention(aggression_embedding, hidden)
+            attack_atten,attack_weight = self.task_specific_attention(attack_embedding, hidden)
+            toxicity_atten,toxicity_weight = self.task_specific_attention(toxicity_embedding, hidden)
 
             aggression_logits, aggression_loss = self.task_classifier(aggression_atten, pooled_output,aggression_labels)
             attack_logits, attack_loss = self.task_classifier(attack_atten, pooled_output, attack_labels)
@@ -187,7 +187,7 @@ class Multi_Model(nn.Module):
 
             all_loss=0.33*aggression_loss+0.33*attack_loss+0.33*toxicity_loss
 
-            return aggression_logits, attack_logits, toxicity_logits, all_loss
+            return aggression_logits, attack_logits, toxicity_logits, all_loss,aggression_weight,attack_weight,toxicity_weight
 
         elif self.aggression_attack_task:
             aggression_embedding = self.word_char_embedding(aggression_tensor, aggression_char_tensor)

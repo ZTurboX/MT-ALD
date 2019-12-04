@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5b00ba78-b6a4-484a-8b62-1d62fd8639b8" name="Default" comment="">
+      <change beforePath="" afterPath="$PROJECT_DIR$/showAttention.ipynb" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
+      <change beforePath="$PROJECT_DIR$/multi_task_model.py" afterPath="$PROJECT_DIR$/multi_task_model.py" />
       <change beforePath="$PROJECT_DIR$/run_multi_task_classifier.py" afterPath="$PROJECT_DIR$/run_multi_task_classifier.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -21,7 +24,7 @@
     <SUITE FILE_PATH="coverage/ALW$stackoverflow_data_collections.coverage" NAME="stackoverflow_data_collections Coverage Results" MODIFIED="1565404726614" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data_collections" />
     <SUITE FILE_PATH="coverage/MT_ALD$wiki_data_collections.coverage" NAME="wiki_data_collections Coverage Results" MODIFIED="1565955183987" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data_collections" />
     <SUITE FILE_PATH="coverage/MT_ALD$help.coverage" NAME="help Coverage Results" MODIFIED="1574940713361" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/MT_ALD$run_multi_task_classifier.coverage" NAME="run_multi_task_classifier Coverage Results" MODIFIED="1574644843069" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/MT_ALD$run_multi_task_classifier.coverage" NAME="run_multi_task_classifier Coverage Results" MODIFIED="1575376726681" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/MT_ALD$stackoverflow_data_collections.coverage" NAME="stackoverflow_data_collections Coverage Results" MODIFIED="1565955036732" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/data_collections" />
   </component>
   <component name="FileEditorManager">
@@ -29,8 +32,8 @@
       <file leaf-file-name="multi_task_model.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/multi_task_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2424">
-              <caret line="163" column="0" lean-forward="false" selection-start-line="163" selection-start-column="0" selection-end-line="163" selection-end-column="0" />
+            <state relative-caret-position="600">
+              <caret line="189" column="126" lean-forward="false" selection-start-line="189" selection-start-column="126" selection-end-line="189" selection-end-column="126" />
               <folding>
                 <element signature="e#1#22#0" expanded="true" />
                 <element signature="e#346#642#0" expanded="false" />
@@ -43,13 +46,13 @@
       <file leaf-file-name="run_multi_task_classifier.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/run_multi_task_classifier.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="346">
-              <caret line="194" column="46" lean-forward="true" selection-start-line="194" selection-start-column="46" selection-end-line="194" selection-end-column="46" />
+            <state relative-caret-position="216">
+              <caret line="183" column="42" lean-forward="false" selection-start-line="183" selection-start-column="42" selection-end-line="183" selection-end-column="42" />
               <folding>
                 <element signature="e#1#65#0" expanded="true" />
-                <element signature="e#12020#14697#0" expanded="false" />
-                <element signature="e#14779#17489#0" expanded="false" />
-                <element signature="e#17567#20394#0" expanded="false" />
+                <element signature="e#12966#15202#0" expanded="false" />
+                <element signature="e#15260#17529#0" expanded="false" />
+                <element signature="e#17583#20078#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -58,8 +61,8 @@
       <file leaf-file-name="compute_score.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/compute_score.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="384">
-              <caret line="36" column="9" lean-forward="true" selection-start-line="36" selection-start-column="9" selection-end-line="36" selection-end-column="9" />
+            <state relative-caret-position="864">
+              <caret line="36" column="9" lean-forward="false" selection-start-line="36" selection-start-column="9" selection-end-line="36" selection-end-column="9" />
               <folding />
             </state>
           </provider>
@@ -68,8 +71,8 @@
       <file leaf-file-name="utils.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/utils.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3408">
-              <caret line="148" column="101" lean-forward="false" selection-start-line="148" selection-start-column="101" selection-end-line="148" selection-end-column="101" />
+            <state relative-caret-position="408">
+              <caret line="73" column="9" lean-forward="false" selection-start-line="68" selection-start-column="7" selection-end-line="73" selection-end-column="9" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
               </folding>
@@ -80,9 +83,11 @@
       <file leaf-file-name="data_processor.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/data_processor.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="192">
-              <caret line="12" column="8" lean-forward="false" selection-start-line="12" selection-start-column="8" selection-end-line="12" selection-end-column="8" />
-              <folding />
+            <state relative-caret-position="789">
+              <caret line="200" column="31" lean-forward="false" selection-start-line="200" selection-start-column="31" selection-end-line="200" selection-end-column="31" />
+              <folding>
+                <element signature="e#2#11#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -105,6 +110,7 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Python Script" />
+        <option value="Jupyter Notebook" />
       </list>
     </option>
   </component>
@@ -129,6 +135,7 @@
         <option value="$PROJECT_DIR$/help.py" />
         <option value="$PROJECT_DIR$/xlnet-base-cased/xlnet-base-cased-config.json" />
         <option value="$PROJECT_DIR$/utils.py" />
+        <option value="$PROJECT_DIR$/showAttention.ipynb" />
         <option value="$PROJECT_DIR$/multi_task_model.py" />
         <option value="$PROJECT_DIR$/run_multi_task_classifier.py" />
       </list>
@@ -180,7 +187,7 @@
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="settings.editor.selected.configurable" value="configurable.group.build" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../MT-ALD-AGG" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -194,7 +201,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.help">
+  <component name="RunManager" selected="Python.run_multi_task_classifier">
     <configuration name="help" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -299,8 +306,8 @@
     </list>
     <recent_temporary>
       <list size="5">
-        <item index="0" class="java.lang.String" itemvalue="Python.help" />
-        <item index="1" class="java.lang.String" itemvalue="Python.run_multi_task_classifier" />
+        <item index="0" class="java.lang.String" itemvalue="Python.run_multi_task_classifier" />
+        <item index="1" class="java.lang.String" itemvalue="Python.help" />
         <item index="2" class="java.lang.String" itemvalue="Python.multi_task_model" />
         <item index="3" class="java.lang.String" itemvalue="Python.utils" />
         <item index="4" class="java.lang.String" itemvalue="Python.test" />
@@ -333,12 +340,12 @@
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17864807" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18133047" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="SciView" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297325" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24056605" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.1768868" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -378,26 +385,27 @@
           <line>13</line>
           <option name="timeStamp" value="131" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/run_multi_task_classifier.py</url>
+          <line>175</line>
+          <option name="timeStamp" value="134" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/run_multi_task_classifier.py</url>
+          <line>177</line>
+          <option name="timeStamp" value="135" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/run_multi_task_classifier.py</url>
+          <line>189</line>
+          <option name="timeStamp" value="136" />
+        </line-breakpoint>
       </breakpoints>
-      <option name="time" value="134" />
+      <option name="time" value="137" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://F:/conda/envs/python3/Lib/site-packages/transformers/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="192">
-          <caret line="65" column="19" lean-forward="false" selection-start-line="65" selection-start-column="19" selection-end-line="65" selection-end-column="19" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://F:/conda/envs/python3/Lib/site-packages/tensorboardX/x2num.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="526">
-          <caret line="33" column="0" lean-forward="false" selection-start-line="33" selection-start-column="0" selection-end-line="33" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://F:/conda/envs/python3/Lib/site-packages/tensorboardX/writer.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="339">
@@ -613,16 +621,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/help.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="336">
-          <caret line="14" column="0" lean-forward="false" selection-start-line="14" selection-start-column="0" selection-end-line="14" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#174#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/roberta-base/roberta-base-config.json">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="120">
@@ -672,24 +670,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/data_processor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="192">
-          <caret line="12" column="8" lean-forward="false" selection-start-line="12" selection-start-column="8" selection-end-line="12" selection-end-column="8" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/utils.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3408">
-          <caret line="148" column="101" lean-forward="false" selection-start-line="148" selection-start-column="101" selection-end-line="148" selection-end-column="101" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://F:/conda/envs/python3/Lib/site-packages/transformers/modeling_xlnet.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="22608">
@@ -697,10 +677,62 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/compute_score.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="864">
+          <caret line="36" column="9" lean-forward="false" selection-start-line="36" selection-start-column="9" selection-end-line="36" selection-end-column="9" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://F:/conda/envs/python3/Lib/site-packages/torch/autograd/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1700">
+          <caret line="92" column="0" lean-forward="false" selection-start-line="92" selection-start-column="0" selection-end-line="92" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/help.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="336">
+          <caret line="14" column="0" lean-forward="false" selection-start-line="14" selection-start-column="0" selection-end-line="14" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#174#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/showAttention.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="2" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/data_processor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="789">
+          <caret line="200" column="31" lean-forward="false" selection-start-line="200" selection-start-column="31" selection-end-line="200" selection-end-column="31" />
+          <folding>
+            <element signature="e#2#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="408">
+          <caret line="73" column="9" lean-forward="false" selection-start-line="68" selection-start-column="7" selection-end-line="73" selection-end-column="9" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/multi_task_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2424">
-          <caret line="163" column="0" lean-forward="false" selection-start-line="163" selection-start-column="0" selection-end-line="163" selection-end-column="0" />
+        <state relative-caret-position="600">
+          <caret line="189" column="126" lean-forward="false" selection-start-line="189" selection-start-column="126" selection-end-line="189" selection-end-column="126" />
           <folding>
             <element signature="e#1#22#0" expanded="true" />
             <element signature="e#346#642#0" expanded="false" />
@@ -709,23 +741,15 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/compute_score.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="384">
-          <caret line="36" column="9" lean-forward="true" selection-start-line="36" selection-start-column="9" selection-end-line="36" selection-end-column="9" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/run_multi_task_classifier.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="346">
-          <caret line="194" column="46" lean-forward="true" selection-start-line="194" selection-start-column="46" selection-end-line="194" selection-end-column="46" />
+        <state relative-caret-position="216">
+          <caret line="183" column="42" lean-forward="false" selection-start-line="183" selection-start-column="42" selection-end-line="183" selection-end-column="42" />
           <folding>
             <element signature="e#1#65#0" expanded="true" />
-            <element signature="e#12020#14697#0" expanded="false" />
-            <element signature="e#14779#17489#0" expanded="false" />
-            <element signature="e#17567#20394#0" expanded="false" />
+            <element signature="e#12966#15202#0" expanded="false" />
+            <element signature="e#15260#17529#0" expanded="false" />
+            <element signature="e#17583#20078#0" expanded="false" />
           </folding>
         </state>
       </provider>
